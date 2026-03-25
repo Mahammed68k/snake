@@ -18,32 +18,8 @@ interface SnakeGameProps {
   isFullScreen?: boolean;
   gridSize: number;
   speed: number;
-  volume: number;
   theme: 'cyber' | 'classic' | 'minimal';
 }
-
-// Sound synthesizer helper
-const playSound = (frequency: number, type: OscillatorType = 'sine', duration: number = 0.1, volume: number = 0.1) => {
-  try {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-
-    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + duration);
-  } catch (error) {
-    console.warn('Audio not supported or blocked:', error);
-  }
-};
 
 export default function SnakeGame({ 
   onScoreChange, 
@@ -54,7 +30,6 @@ export default function SnakeGame({
   isFullScreen,
   gridSize,
   speed,
-  volume: sfxVolume,
   theme
 }: SnakeGameProps) {
   const [snake, setSnake] = useState<Point[]>([
@@ -73,34 +48,6 @@ export default function SnakeGame({
   const directionRef = useRef(direction);
   directionRef.current = direction;
   const touchStart = useRef<Point | null>(null);
-
-  const playMoveSound = useCallback(() => {
-    playSound(150, 'square', 0.05, 0.02 * sfxVolume * 10);
-  }, [sfxVolume]);
-
-  const playEatSound = useCallback(() => {
-    // Single pleasant beep (E5)
-    playSound(659.25, 'sine', 0.15, 0.08 * sfxVolume * 10);
-  }, [sfxVolume]);
-
-  const playGameOverSound = useCallback(() => {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = 'sawtooth';
-    oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
-
-    gainNode.gain.setValueAtTime(0.1 * sfxVolume * 10, audioCtx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.5);
-  }, [sfxVolume]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = {
@@ -314,7 +261,6 @@ export default function SnakeGame({
         )
       ) {
         setGameOver(true);
-        playGameOverSound();
         onGameOver?.(score);
         return;
       }
@@ -327,12 +273,10 @@ export default function SnakeGame({
         setScore(newScore);
         onScoreChange(newScore);
         setFood(generateFood(newSnake, obstacles));
-        playEatSound();
         setJustAte(true);
         setTimeout(() => setJustAte(false), 200);
       } else {
         newSnake.pop();
-        playMoveSound();
       }
 
       setSnake(newSnake);

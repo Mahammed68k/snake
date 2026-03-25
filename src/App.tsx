@@ -12,7 +12,6 @@ import SettingsModal from './components/SettingsModal';
 interface GameSettings {
   gridSize: number;
   speed: number;
-  volume: number;
   theme: 'cyber' | 'classic' | 'minimal';
 }
 
@@ -56,7 +55,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : {
       gridSize: 15,
       speed: 150,
-      volume: 0.5,
       theme: 'cyber'
     };
   });
@@ -374,7 +372,6 @@ export default function App() {
             isFullScreen={isFullScreen}
             gridSize={settings.gridSize}
             speed={settings.speed}
-            volume={settings.volume}
             theme={settings.theme}
           />
         ) : (

@@ -4,7 +4,6 @@ import { X, Settings, Volume2, Grid, Zap, Palette } from 'lucide-react';
 interface GameSettings {
   gridSize: number;
   speed: number;
-  volume: number;
   theme: 'cyber' | 'classic' | 'minimal';
 }
 
@@ -15,10 +14,6 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ settings, onUpdate, onClose }: SettingsModalProps) {
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ ...settings, volume: parseFloat(e.target.value) });
-  };
-
   const handleGridSizeChange = (size: number) => {
     onUpdate({ ...settings, gridSize: size });
   };
@@ -96,26 +91,6 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Volume */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-cyan-300 text-xs font-bold uppercase tracking-wider">
-            <div className="flex items-center gap-2">
-              <Volume2 size={14} />
-              <span>SFX Volume</span>
-            </div>
-            <span className="text-cyan-400 font-mono">{Math.round(settings.volume * 100)}%</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={settings.volume}
-            onChange={handleVolumeChange}
-            className="w-full accent-cyan-400 h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer"
-          />
         </div>
 
         {/* Theme */}
