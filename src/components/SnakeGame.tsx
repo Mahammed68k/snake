@@ -13,6 +13,7 @@ interface SnakeGameProps {
   onScoreChange: (score: number) => void;
   onGameOver?: (score: number) => void;
   onShowLeaderboard?: () => void;
+  onReturnToMenu?: () => void;
   highScore: number;
   isFullScreen?: boolean;
   gridSize: number;
@@ -48,6 +49,7 @@ export default function SnakeGame({
   onScoreChange, 
   onGameOver, 
   onShowLeaderboard, 
+  onReturnToMenu,
   highScore, 
   isFullScreen,
   gridSize,
@@ -62,6 +64,7 @@ export default function SnakeGame({
   ]);
   const [direction, setDirection] = useState<Point>(INITIAL_DIRECTION);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
+  const [obstacles, setObstacles] = useState<Point[]>([]);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -70,20 +73,6 @@ export default function SnakeGame({
   const directionRef = useRef(direction);
   directionRef.current = direction;
   const touchStart = useRef<Point | null>(null);
-
-  useEffect(() => {
-    setSnake([
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
-    ]);
-    setFood(generateFood([]));
-    setDirection(INITIAL_DIRECTION);
-    setScore(0);
-    onScoreChange(0);
-    setGameOver(false);
-    setIsPaused(false);
-  }, [gridSize, speed, theme]);
 
   const playMoveSound = useCallback(() => {
     playSound(150, 'square', 0.05, 0.02 * sfxVolume * 10);
@@ -166,9 +155,41 @@ export default function SnakeGame({
     touchStart.current = null;
   };
 
-  const generateFood = useCallback((currentSnake: Point[]) => {
+  const generateObstacles = useCallback((currentSnake: Point[], count: number) => {
+    const newObstacles: Point[] = [];
+    for (let i = 0; i < count; i++) {
+      let newObstacle: Point;
+      let isOccupied = true;
+      let attempts = 0;
+      while (isOccupied && attempts < 100) {
+        newObstacle = {
+          x: Math.floor(Math.random() * gridSize),
+          y: Math.floor(Math.random() * gridSize),
+        };
+        
+        // Avoid center area where snake starts and moves
+        const inCenter = newObstacle.x >= Math.floor(gridSize/2) - 2 && newObstacle.x <= Math.floor(gridSize/2) + 2 &&
+                         newObstacle.y >= Math.floor(gridSize/2) - 2 && newObstacle.y <= Math.floor(gridSize/2) + 2;
+
+        // eslint-disable-next-line no-loop-func
+        isOccupied =
+          currentSnake.some((segment) => segment.x === newObstacle.x && segment.y === newObstacle.y) ||
+          newObstacles.some((obs) => obs.x === newObstacle.x && obs.y === newObstacle.y) ||
+          inCenter;
+          
+        attempts++;
+      }
+      if (!isOccupied) {
+        newObstacles.push(newObstacle!);
+      }
+    }
+    return newObstacles;
+  }, [gridSize]);
+
+  const generateFood = useCallback((currentSnake: Point[], currentObstacles: Point[] = []) => {
     let newFood: Point;
-    while (true) {
+    let attempts = 0;
+    while (attempts < 100) {
       newFood = {
         x: Math.floor(Math.random() * gridSize),
         y: Math.floor(Math.random() * gridSize),
@@ -177,10 +198,35 @@ export default function SnakeGame({
       const isOnSnake = currentSnake.some(
         (segment) => segment.x === newFood.x && segment.y === newFood.y
       );
-      if (!isOnSnake) break;
+      // eslint-disable-next-line no-loop-func
+      const isOnObstacle = currentObstacles.some(
+        (obs) => obs.x === newFood.x && obs.y === newFood.y
+      );
+      if (!isOnSnake && !isOnObstacle) break;
+      attempts++;
     }
-    return newFood;
-  }, []);
+    return newFood!;
+  }, [gridSize]);
+
+  useEffect(() => {
+    const initialSnake = [
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
+    ];
+    setSnake(initialSnake);
+    
+    const obstacleCount = Math.floor((gridSize * gridSize) / 50);
+    const initialObstacles = generateObstacles(initialSnake, obstacleCount);
+    setObstacles(initialObstacles);
+    
+    setFood(generateFood(initialSnake, initialObstacles));
+    setDirection(INITIAL_DIRECTION);
+    setScore(0);
+    onScoreChange(0);
+    setGameOver(false);
+    setIsPaused(false);
+  }, [gridSize, speed, theme, generateObstacles, generateFood]);
 
   const resetGame = () => {
     const initialSnake = [
@@ -194,7 +240,12 @@ export default function SnakeGame({
     onScoreChange(0);
     setGameOver(false);
     setIsPaused(false);
-    setFood(generateFood(initialSnake));
+    
+    const obstacleCount = Math.floor((gridSize * gridSize) / 50);
+    const newObstacles = generateObstacles(initialSnake, obstacleCount);
+    setObstacles(newObstacles);
+    
+    setFood(generateFood(initialSnake, newObstacles));
   };
 
   useEffect(() => {
@@ -253,10 +304,13 @@ export default function SnakeGame({
         newHead.y = 0;
       }
 
-      // Check collision with self
+      // Check collision with self or obstacles
       if (
         snake.some(
           (segment) => segment.x === newHead.x && segment.y === newHead.y
+        ) ||
+        obstacles.some(
+          (obs) => obs.x === newHead.x && obs.y === newHead.y
         )
       ) {
         setGameOver(true);
@@ -272,7 +326,7 @@ export default function SnakeGame({
         const newScore = score + 10;
         setScore(newScore);
         onScoreChange(newScore);
-        setFood(generateFood(newSnake));
+        setFood(generateFood(newSnake, obstacles));
         playEatSound();
         setJustAte(true);
         setTimeout(() => setJustAte(false), 200);
@@ -286,7 +340,7 @@ export default function SnakeGame({
 
     const timeoutId = setTimeout(moveSnake, speed);
     return () => clearTimeout(timeoutId);
-  }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood, speed, gridSize]);
+  }, [snake, food, obstacles, gameOver, isPaused, score, onScoreChange, generateFood, speed, gridSize]);
 
   const cellSize = 100 / gridSize;
 
@@ -314,6 +368,30 @@ export default function SnakeGame({
             <div key={index} className={`w-full h-full ${theme === 'cyber' ? 'border border-cyan-900/10' : ''}`} />
           ))}
         </div>
+
+        {/* Obstacles */}
+        {obstacles.map((obs, index) => (
+          <div
+            key={`obs-${index}-${obs.x}-${obs.y}`}
+            className={`absolute flex items-center justify-center ${
+              theme === 'cyber' 
+                ? 'bg-red-900/40 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' 
+                : theme === 'classic'
+                ? 'bg-gray-700 border-2 border-gray-900'
+                : 'bg-gray-800'
+            }`}
+            style={{
+              width: `${cellSize}%`,
+              height: `${cellSize}%`,
+              left: `${obs.x * cellSize}%`,
+              top: `${obs.y * cellSize}%`,
+            }}
+          >
+            {theme === 'cyber' && (
+              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(239,68,68,0.2)_2px,rgba(239,68,68,0.2)_4px)]" />
+            )}
+          </div>
+        ))}
 
         {/* Food */}
         <motion.div
@@ -484,7 +562,7 @@ export default function SnakeGame({
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="flex flex-col gap-3 w-full max-w-[200px]"
+              className="flex flex-col gap-3 w-full max-w-[250px]"
             >
               <button
                 onClick={resetGame}
@@ -498,6 +576,14 @@ export default function SnakeGame({
               >
                 LEADERBOARD
               </button>
+              {onReturnToMenu && (
+                <button
+                  onClick={onReturnToMenu}
+                  className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold rounded-full transition-all"
+                >
+                  MAIN MENU
+                </button>
+              )}
             </motion.div>
           </motion.div>
         )}

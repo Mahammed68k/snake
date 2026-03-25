@@ -30,6 +30,7 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu');
 
   const handleSyncAccount = async (provider: 'google' | 'facebook') => {
     if (!user) return;
@@ -189,32 +190,38 @@ export default function App() {
       {!isFullScreen && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
           <div className="flex flex-col pointer-events-auto">
-            <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
-              SNAKE
-            </h1>
-            <p className="text-cyan-300 font-display tracking-widest text-[10px] md:text-xs mt-0.5 opacity-80">
-              CYBER EDITION
-            </p>
+            {gameState === 'playing' && (
+              <>
+                <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
+                  SNAKE
+                </h1>
+                <p className="text-cyan-300 font-display tracking-widest text-[10px] md:text-xs mt-0.5 opacity-80">
+                  CYBER EDITION
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex flex-col items-end gap-4 pointer-events-auto relative">
             {/* Menu Toggle */}
-            <button 
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="p-2.5 bg-black/60 border border-cyan-500/30 rounded-xl text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/60 transition-all active:scale-95 shadow-[0_0_20px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
-              title="Menu"
-            >
-              <svg className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {showProfileMenu ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
+            {gameState !== 'playing' && (
+              <button 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="p-2.5 bg-black/60 border border-cyan-500/30 rounded-xl text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/60 transition-all active:scale-95 shadow-[0_0_20px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
+                title="Menu"
+              >
+                <svg className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {showProfileMenu ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+            )}
 
             {/* Profile Dropdown Menu */}
-            {showProfileMenu && (
+            {showProfileMenu && gameState !== 'playing' && (
               <>
                 <div 
                   className="fixed inset-0 z-30" 
@@ -227,19 +234,6 @@ export default function App() {
                       {user.email || 'Guest User'}
                     </p>
                   </div>
-                  
-                  <button
-                    onClick={() => {
-                      setShowLeaderboard(true);
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-xs text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-lg transition-colors group"
-                  >
-                    <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Leaderboard
-                  </button>
 
                   <button
                     onClick={() => {
@@ -317,34 +311,29 @@ export default function App() {
 
             {/* Score Display */}
             <div className="flex gap-2 md:gap-3 items-stretch">
-              <button
-                onClick={() => setIsFullScreen(true)}
-                className="bg-black/60 border border-cyan-500/30 hover:border-cyan-500/80 rounded-xl px-2.5 md:px-4 flex items-center justify-center text-cyan-400 transition-all hover:bg-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
-                title="Full Screen"
-              >
-                <svg className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                </svg>
-              </button>
-              <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
-                <p className="text-cyan-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
-                <p className="text-xl md:text-[30px] font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
-                  {score.toString().padStart(4, '0')}
-                </p>
-              </div>
-              <div className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
-                <p className="text-fuchsia-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-normal mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>High_Record</p>
-                <motion.p 
-                  key={highScore}
-                  initial={{ scale: 1.3, filter: 'brightness(1.5)' }}
-                  animate={{ scale: 1, filter: 'brightness(1)' }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-                  className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
-                  style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}
-                >
-                  {highScore.toString().padStart(4, '0')}
-                </motion.p>
-              </div>
+              {gameState === 'playing' && (
+                <>
+                  <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
+                    <p className="text-cyan-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
+                    <p className="text-xl md:text-[30px] font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
+                      {score.toString().padStart(4, '0')}
+                    </p>
+                  </div>
+                  <div className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
+                    <p className="text-fuchsia-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-normal mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>High_Record</p>
+                    <motion.p 
+                      key={highScore}
+                      initial={{ scale: 1.3, filter: 'brightness(1.5)' }}
+                      animate={{ scale: 1, filter: 'brightness(1)' }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                      className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
+                      style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}
+                    >
+                      {highScore.toString().padStart(4, '0')}
+                    </motion.p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -353,12 +342,14 @@ export default function App() {
       {/* Exit Full Screen Button */}
       {isFullScreen && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-4 animate-in fade-in duration-500">
-          <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(6,182,212,0.2)] backdrop-blur-md">
-            <p className="text-gray-400 text-[9px] uppercase tracking-widest mb-0.5">Score</p>
-            <p className="text-xl font-display font-bold text-cyan-400">
-              {score.toString().padStart(4, '0')}
-            </p>
-          </div>
+          {gameState === 'playing' && (
+            <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(6,182,212,0.2)] backdrop-blur-md">
+              <p className="text-gray-400 text-[9px] uppercase tracking-widest mb-0.5">Score</p>
+              <p className="text-xl font-display font-bold text-cyan-400">
+                {score.toString().padStart(4, '0')}
+              </p>
+            </div>
+          )}
           <button
             onClick={() => setIsFullScreen(false)}
             className="bg-black/60 border border-red-500/50 hover:bg-red-500/20 text-red-400 p-3 rounded-full transition-all active:scale-95 shadow-[0_0_20px_rgba(239,68,68,0.2)] backdrop-blur-md"
@@ -373,21 +364,59 @@ export default function App() {
 
       {/* Game Area - Full Screen Centered */}
       <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12'}`}>
-        <SnakeGame 
-          onScoreChange={setScore} 
-          onGameOver={handleGameOver} 
-          highScore={highScore} 
-          onShowLeaderboard={() => setShowLeaderboard(true)}
-          isFullScreen={isFullScreen}
-          gridSize={settings.gridSize}
-          speed={settings.speed}
-          volume={settings.volume}
-          theme={settings.theme}
-        />
+        {gameState === 'playing' ? (
+          <SnakeGame 
+            onScoreChange={setScore} 
+            onGameOver={handleGameOver} 
+            highScore={highScore} 
+            onShowLeaderboard={() => setShowLeaderboard(true)}
+            onReturnToMenu={() => setGameState('menu')}
+            isFullScreen={isFullScreen}
+            gridSize={settings.gridSize}
+            speed={settings.speed}
+            volume={settings.volume}
+            theme={settings.theme}
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-12">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex flex-col items-center"
+            >
+              <h1 className="text-6xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.5)] tracking-wider mb-2">
+                SNAKE
+              </h1>
+              <p className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80">
+                CYBER EDITION
+              </p>
+            </motion.div>
+            
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="flex flex-col gap-4 w-full max-w-[300px]"
+            >
+              <button
+                onClick={() => setGameState('playing')}
+                className="w-full px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:shadow-[0_0_35px_rgba(6,182,212,0.8)] hover:scale-105 active:scale-95"
+              >
+                PLAY GAME
+              </button>
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="w-full px-8 py-4 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold text-xl rounded-full transition-all hover:scale-105 active:scale-95"
+              >
+                LEADERBOARD
+              </button>
+            </motion.div>
+          </div>
+        )}
       </main>
 
       {/* Floating Sidebar Widgets - Hidden in Full Screen */}
-      {!isFullScreen && (
+      {!isFullScreen && gameState === 'playing' && (
         <div className="absolute bottom-4 left-4 right-4 flex flex-col md:flex-row items-end justify-end gap-4 z-20 pointer-events-none">
           {/* Right Side: Controls (Hidden on small screens to save space) */}
           <div className="hidden lg:flex flex-col gap-4 pointer-events-auto w-80">
