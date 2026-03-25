@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Pause, Play, Volume2, VolumeX, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 
 const INITIAL_DIRECTION = { x: 0, y: -1 };
 
@@ -68,7 +68,6 @@ export default function SnakeGame({
     const saved = localStorage.getItem('snakeMuted');
     return saved === 'true';
   });
-  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
 
   const directionRef = useRef(direction);
   directionRef.current = direction;
@@ -91,10 +90,6 @@ export default function SnakeGame({
   useEffect(() => {
     localStorage.setItem('snakeMuted', isMuted.toString());
   }, [isMuted]);
-
-  useEffect(() => {
-    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
-  }, []);
 
   const playMoveSound = useCallback(() => {
     if (isMuted) return;
@@ -477,56 +472,6 @@ export default function SnakeGame({
           <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
             PAUSED
           </h2>
-        </div>
-      )}
-
-      {/* On-screen Joystick for Touch Devices */}
-      {isTouchDevice && !isFullScreen && !gameOver && (
-        <div className="mt-8 grid grid-cols-3 gap-3 z-30 pointer-events-auto">
-          <div />
-          <button
-            onClick={() => {
-              if (directionRef.current.y !== 1) setDirection({ x: 0, y: -1 });
-            }}
-            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-          >
-            <ChevronUp size={36} />
-          </button>
-          <div />
-          
-          <button
-            onClick={() => {
-              if (directionRef.current.x !== 1) setDirection({ x: -1, y: 0 });
-            }}
-            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-          >
-            <ChevronLeft size={36} />
-          </button>
-          <button
-            onClick={() => setIsPaused((prev) => !prev)}
-            className="w-16 h-16 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-2xl flex items-center justify-center text-fuchsia-400 active:bg-fuchsia-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(217,70,239,0.2)]"
-          >
-            {isPaused ? <Play size={28} fill="currentColor" /> : <Pause size={28} fill="currentColor" />}
-          </button>
-          <button
-            onClick={() => {
-              if (directionRef.current.x !== -1) setDirection({ x: 1, y: 0 });
-            }}
-            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-          >
-            <ChevronRight size={36} />
-          </button>
-          
-          <div />
-          <button
-            onClick={() => {
-              if (directionRef.current.y !== -1) setDirection({ x: 0, y: 1 });
-            }}
-            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-          >
-            <ChevronDown size={36} />
-          </button>
-          <div />
         </div>
       )}
     </div>
