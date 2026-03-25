@@ -1,9 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { auth } from './firebase';
 import SnakeGame from './components/SnakeGame';
 import MusicPlayer from './components/MusicPlayer';
+import Login from './components/Login';
 
 export default function App() {
   const [score, setScore] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
 
   return (
     <div className="min-h-screen bg-[#050505] relative overflow-hidden flex flex-col items-center justify-between py-8 px-4 font-sans">
@@ -29,12 +62,37 @@ export default function App() {
           </p>
         </div>
 
-        {/* Score Display */}
-        <div className="bg-black/50 border border-cyan-500/50 rounded-xl px-6 py-3 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-sm">
-          <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Score</p>
-          <p className="text-3xl font-display font-bold text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.8)]">
-            {score.toString().padStart(4, '0')}
-          </p>
+        <div className="flex items-center gap-6">
+          {/* User Profile & Sign Out */}
+          <div className="flex items-center gap-4 bg-black/30 border border-white/10 rounded-xl px-4 py-2 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="Profile" className="w-8 h-8 rounded-full border border-cyan-500/50" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-cyan-900/50 border border-cyan-500/50 flex items-center justify-center text-cyan-300 text-sm font-bold">
+                  {user.email?.[0].toUpperCase() || 'U'}
+                </div>
+              )}
+              <span className="text-gray-300 text-sm hidden sm:block max-w-[100px] truncate">
+                {user.displayName || user.email}
+              </span>
+            </div>
+            <div className="w-px h-6 bg-white/10 mx-1"></div>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-fuchsia-400 hover:text-fuchsia-300 transition-colors uppercase tracking-wider font-bold"
+            >
+              Sign Out
+            </button>
+          </div>
+
+          {/* Score Display */}
+          <div className="bg-black/50 border border-cyan-500/50 rounded-xl px-6 py-3 shadow-[0_0_20px_rgba(6,182,212,0.3)] backdrop-blur-sm">
+            <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Score</p>
+            <p className="text-3xl font-display font-bold text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.8)]">
+              {score.toString().padStart(4, '0')}
+            </p>
+          </div>
         </div>
       </header>
 

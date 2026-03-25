@@ -27,3 +27,12 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #06b6d4;
 }
+
+@keyframes hoodFlare {
+  0% { transform: scaleX(0.85); }
+  100% { transform: scaleX(1.15); }
+}
+
+.animate-hood-flare {
+  animation: hoodFlare 1.5s infinite alternate ease-in-out;
+}
