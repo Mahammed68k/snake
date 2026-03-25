@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Pause, Play } from 'lucide-react';
 
-const GRID_SIZE = 20;
+const GRID_SIZE = 15;
 const INITIAL_SNAKE = [
-  { x: 10, y: 10 },
-  { x: 10, y: 11 },
-  { x: 10, y: 12 },
+  { x: 7, y: 7 },
+  { x: 7, y: 8 },
+  { x: 7, y: 9 },
 ];
 const INITIAL_DIRECTION = { x: 0, y: -1 };
 const GAME_SPEED = 150;
@@ -17,9 +18,11 @@ interface Point {
 interface SnakeGameProps {
   onScoreChange: (score: number) => void;
   onGameOver?: (score: number) => void;
+  onShowLeaderboard?: () => void;
+  highScore: number;
 }
 
-export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps) {
+export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard, highScore }: SnakeGameProps) {
   const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
   const [direction, setDirection] = useState<Point>(INITIAL_DIRECTION);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
@@ -39,7 +42,7 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current || gameOver || isPaused) return;
+    if (!touchStart.current || gameOver) return;
 
     const touchEnd = {
       x: e.changedTouches[0].clientX,
@@ -54,6 +57,7 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
 
     // Minimum swipe distance to trigger move
     if (Math.max(absDx, absDy) > 30) {
+      if (isPaused) return;
       const { x: curX, y: curY } = directionRef.current;
       if (absDx > absDy) {
         // Horizontal swipe
@@ -63,6 +67,20 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
         // Vertical swipe
         if (dy > 0 && curY !== -1) setDirection({ x: 0, y: 1 });
         else if (dy < 0 && curY !== 1) setDirection({ x: 0, y: -1 });
+      }
+    } else {
+      // Tap detected - check if it's in the middle area
+      const rect = e.currentTarget.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const distFromCenter = Math.sqrt(
+        Math.pow(touchEnd.x - centerX, 2) + Math.pow(touchEnd.y - centerY, 2)
+      );
+      
+      // If tap is within 30% of the board width from the center, toggle pause
+      if (distFromCenter < rect.width * 0.3) {
+        setIsPaused((prev) => !prev);
       }
     }
 
@@ -188,11 +206,11 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
       onTouchEnd={handleTouchEnd}
     >
       <div
-        className="grid bg-black/40 border-2 border-cyan-500 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)] overflow-hidden"
+        className="grid bg-black/40 border-2 border-cyan-500 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden"
         style={{
           gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-          width: 'min(80vw, 500px)',
-          height: 'min(80vw, 500px)',
+          width: 'min(98vw, 98vh)',
+          height: 'min(98vw, 98vh)',
         }}
       >
         {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
@@ -224,7 +242,7 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
 
             content = (
               <div
-                className="w-full h-full bg-green-600 rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_10px_rgba(22,163,74,0.6)]"
+                className="w-full h-full bg-green-600 rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_12px_rgba(22,163,74,0.7)]"
                 style={{ transform: `rotate(${headRotation}deg)` }}
               >
                 {/* Eyes */}
@@ -251,18 +269,18 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
             const isEven = snakeIndex % 2 === 0;
             content = (
               <div className="w-full h-full flex items-center justify-center">
-                <div className={`w-[90%] h-[90%] ${isEven ? 'bg-green-500' : 'bg-green-600'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)]`} />
+                <div className={`w-[96%] h-[96%] ${isEven ? 'bg-green-500' : 'bg-green-600'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)]`} />
               </div>
             );
           } else if (isFood) {
             content = (
               <div className="w-full h-full flex items-center justify-center relative animate-bounce">
                 {/* Left Ear */}
-                <div className="absolute top-[15%] left-[15%] w-[30%] h-[30%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
+                <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
                 {/* Right Ear */}
-                <div className="absolute top-[15%] right-[15%] w-[30%] h-[30%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
+                <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
                 {/* Head */}
-                <div className="absolute top-[25%] w-[75%] h-[65%] bg-orange-400 rounded-full shadow-sm">
+                <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
                   {/* Eyes */}
                   <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
                   <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
@@ -279,11 +297,23 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
           }
 
           return (
-            <div key={index} className={`w-full h-full ${!content ? 'border border-cyan-900/20' : ''}`}>
+            <div key={index} className={`w-full h-full ${!content ? 'border border-cyan-900/10' : ''}`}>
               {content}
             </div>
           );
         })}
+      </div>
+
+      {/* Center Pause/Play Button Indicator */}
+      <div 
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none transition-all duration-300 ${isPaused ? 'opacity-60 scale-110' : 'opacity-10 scale-100'}`}
+        style={{ width: '15%', height: '15%' }}
+      >
+        {isPaused ? (
+          <Play fill="currentColor" className="w-full h-full text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]" />
+        ) : (
+          <Pause fill="currentColor" className="w-full h-full text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.4)]" />
+        )}
       </div>
 
       {gameOver && (
@@ -291,13 +321,24 @@ export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps)
           <h2 className="text-4xl font-bold text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
             GAME OVER
           </h2>
-          <p className="text-xl text-cyan-300 mb-6">Final Score: {score}</p>
-          <button
-            onClick={resetGame}
-            className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)]"
-          >
-            PLAY AGAIN
-          </button>
+          <div className="flex flex-col items-center gap-2 mb-6">
+            <p className="text-xl text-cyan-300">Final Score: {score}</p>
+            <p className="text-sm text-fuchsia-400 uppercase tracking-widest">High Score: {Math.max(score, highScore)}</p>
+          </div>
+          <div className="flex flex-col gap-3 w-full max-w-[200px]">
+            <button
+              onClick={resetGame}
+              className="w-full px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)]"
+            >
+              PLAY AGAIN
+            </button>
+            <button
+              onClick={onShowLeaderboard}
+              className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-all"
+            >
+              LEADERBOARD
+            </button>
+          </div>
         </div>
       )}
 

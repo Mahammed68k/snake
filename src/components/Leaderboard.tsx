@@ -18,15 +18,28 @@ export default function Leaderboard() {
     const q = query(
       collection(db, 'leaderboard'),
       orderBy('score', 'desc'),
-      limit(10)
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newScores = snapshot.docs.map(doc => ({
+      const allScores = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as LeaderboardEntry[];
-      setScores(newScores);
+      
+      // Filter to only keep the highest score per user (in case of old history)
+      const uniqueScores: LeaderboardEntry[] = [];
+      const seenUsers = new Set();
+      
+      for (const entry of allScores) {
+        if (!seenUsers.has(entry.userId)) {
+          uniqueScores.push(entry);
+          seenUsers.add(entry.userId);
+        }
+        if (uniqueScores.length >= 10) break;
+      }
+      
+      setScores(uniqueScores);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching leaderboard:", error);
@@ -42,7 +55,7 @@ export default function Leaderboard() {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
-        TOP SCORES
+        HIGH SCORES
       </h3>
       
       {loading ? (

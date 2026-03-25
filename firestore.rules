@@ -21,17 +21,24 @@ service cloud.firestore {
              request.resource.data.timestamp is timestamp;
     }
 
-    match /leaderboard/{entryId} {
+    match /leaderboard/{userId} {
       // Anyone can read the leaderboard
       allow read: if true;
       
       // Users can only create their own scores
       allow create: if isAuthenticated() && 
+                    userId == request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry();
                     
-      // No updates or deletes allowed for leaderboard entries to prevent tampering
-      allow update, delete: if false;
+      // Users can update their own score if it's higher
+      allow update: if isAuthenticated() && 
+                    userId == request.auth.uid &&
+                    request.resource.data.userId == request.auth.uid &&
+                    isValidLeaderboardEntry() &&
+                    request.resource.data.score > resource.data.score;
+      
+      allow delete: if false;
     }
   }
 }
