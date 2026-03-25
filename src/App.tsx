@@ -3,11 +3,12 @@ import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 
 import { collection, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import SnakeGame from './components/SnakeGame';
 import Login from './components/Login';
 import Leaderboard from './components/Leaderboard';
 import SettingsModal from './components/SettingsModal';
+import IntroScreen from './components/IntroScreen';
 
 interface GameSettings {
   gridSize: number;
@@ -29,7 +30,7 @@ export default function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu');
+  const [gameState, setGameState] = useState<'intro' | 'menu' | 'playing'>('intro');
 
   const handleSyncAccount = async (provider: 'google' | 'facebook') => {
     if (!user) return;
@@ -185,7 +186,7 @@ export default function App() {
       />
 
       {/* Floating Header / HUD - Hidden in Full Screen */}
-      {!isFullScreen && (
+      {!isFullScreen && gameState !== 'intro' && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
           <div className="flex flex-col pointer-events-auto">
             {gameState === 'playing' && (
@@ -362,54 +363,72 @@ export default function App() {
 
       {/* Game Area - Full Screen Centered */}
       <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12'}`}>
-        {gameState === 'playing' ? (
-          <SnakeGame 
-            onScoreChange={setScore} 
-            onGameOver={handleGameOver} 
-            highScore={highScore} 
-            onShowLeaderboard={() => setShowLeaderboard(true)}
-            onReturnToMenu={() => setGameState('menu')}
-            isFullScreen={isFullScreen}
-            gridSize={settings.gridSize}
-            speed={settings.speed}
-            theme={settings.theme}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-12">
+        <AnimatePresence mode="wait">
+          {gameState === 'intro' ? (
+            <IntroScreen key="intro" onComplete={() => setGameState('menu')} />
+          ) : gameState === 'playing' ? (
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="flex flex-col items-center"
+              key="playing"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full h-full flex items-center justify-center"
             >
-              <h1 className="text-6xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.5)] tracking-wider mb-2">
-                SNAKE
-              </h1>
-              <p className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80">
-                CYBER EDITION
-              </p>
+              <SnakeGame 
+                onScoreChange={setScore} 
+                onGameOver={handleGameOver} 
+                highScore={highScore} 
+                onShowLeaderboard={() => setShowLeaderboard(true)}
+                onReturnToMenu={() => setGameState('menu')}
+                isFullScreen={isFullScreen}
+                gridSize={settings.gridSize}
+                speed={settings.speed}
+                theme={settings.theme}
+              />
             </motion.div>
-            
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex flex-col gap-4 w-full max-w-[300px]"
+          ) : (
+            <motion.div 
+              key="menu"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex flex-col items-center justify-center gap-12"
             >
-              <button
-                onClick={() => setGameState('playing')}
-                className="w-full px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:shadow-[0_0_35px_rgba(6,182,212,0.8)] hover:scale-105 active:scale-95"
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex flex-col items-center"
               >
-                PLAY GAME
-              </button>
-              <button
-                onClick={() => setShowLeaderboard(true)}
-                className="w-full px-8 py-4 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold text-xl rounded-full transition-all hover:scale-105 active:scale-95"
+                <h1 className="text-6xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.5)] tracking-wider mb-2">
+                  SNAKE
+                </h1>
+                <p className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80">
+                  CYBER EDITION
+                </p>
+              </motion.div>
+              
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="flex flex-col gap-4 w-full max-w-[300px]"
               >
-                LEADERBOARD
-              </button>
+                <button
+                  onClick={() => setGameState('playing')}
+                  className="w-full px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:shadow-[0_0_35px_rgba(6,182,212,0.8)] hover:scale-105 active:scale-95"
+                >
+                  PLAY GAME
+                </button>
+                <button
+                  onClick={() => setShowLeaderboard(true)}
+                  className="w-full px-8 py-4 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold text-xl rounded-full transition-all hover:scale-105 active:scale-95"
+                >
+                  LEADERBOARD
+                </button>
+              </motion.div>
             </motion.div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Floating Sidebar Widgets - Hidden in Full Screen */}

@@ -353,24 +353,41 @@ export default function SnakeGame({
         >
           <div className={`w-full h-full flex items-center justify-center relative ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
             {theme === 'cyber' ? (
-              <>
+              <div className="relative w-[90%] h-[90%] drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]">
+                {/* Tail */}
+                <div className="absolute -bottom-[20%] left-1/2 -translate-x-1/2 w-[10%] h-[50%] bg-orange-600 rounded-full origin-top rotate-[15deg]" />
                 {/* Left Ear */}
-                <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
+                <div className="absolute top-[5%] left-[5%] w-[40%] h-[40%] bg-orange-500 rounded-full border border-orange-300" />
                 {/* Right Ear */}
-                <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
-                {/* Head */}
-                <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
+                <div className="absolute top-[5%] right-[5%] w-[40%] h-[40%] bg-orange-500 rounded-full border border-orange-300" />
+                {/* Head/Body */}
+                <div className="absolute top-[15%] left-[10%] w-[80%] h-[80%] bg-gradient-to-b from-orange-400 to-orange-600 rounded-full shadow-inner">
                   {/* Eyes */}
-                  <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
-                  <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                  <div className="absolute top-[30%] left-[20%] w-[20%] h-[25%] bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]" />
+                  <div className="absolute top-[30%] right-[20%] w-[20%] h-[25%] bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]" />
                   {/* Nose */}
-                  <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
+                  <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-400 rounded-full shadow-[0_0_4px_rgba(244,114,182,0.8)]" />
+                  {/* Whiskers */}
+                  <div className="absolute top-[60%] -left-[20%] w-[40%] h-[2%] bg-white/50 rotate-12" />
+                  <div className="absolute top-[70%] -left-[20%] w-[40%] h-[2%] bg-white/50 -rotate-12" />
+                  <div className="absolute top-[60%] -right-[20%] w-[40%] h-[2%] bg-white/50 -rotate-12" />
+                  <div className="absolute top-[70%] -right-[20%] w-[40%] h-[2%] bg-white/50 rotate-12" />
                 </div>
-              </>
+              </div>
             ) : theme === 'classic' ? (
-              <div className="w-[70%] h-[70%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
+              <div className="relative w-[80%] h-[80%] drop-shadow-[0_0_5px_rgba(156,163,175,0.5)]">
+                 {/* Classic Mouse */}
+                 <div className="absolute -bottom-[10%] left-1/2 -translate-x-1/2 w-[8%] h-[40%] bg-gray-400 rounded-full origin-top rotate-[20deg]" />
+                 <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-gray-400 rounded-full" />
+                 <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-gray-400 rounded-full" />
+                 <div className="absolute top-[20%] left-[10%] w-[80%] h-[75%] bg-gray-300 rounded-full">
+                   <div className="absolute top-[30%] left-[25%] w-[15%] h-[20%] bg-black rounded-full" />
+                   <div className="absolute top-[30%] right-[25%] w-[15%] h-[20%] bg-black rounded-full" />
+                   <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-[12%] h-[12%] bg-pink-400 rounded-full" />
+                 </div>
+              </div>
             ) : (
-              <div className="w-[40%] h-[40%] bg-white rounded-sm rotate-45" />
+              <div className="w-[50%] h-[50%] bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
             )}
           </div>
         </motion.div>
@@ -379,7 +396,31 @@ export default function SnakeGame({
         {snake.map((segment, index) => {
           const isHead = index === 0;
           const isTail = index === snake.length - 1 && snake.length > 1;
-          const isEven = index % 2 === 0;
+          const progress = snake.length > 1 ? index / (snake.length - 1) : 0; // 0 for head, 1 for tail
+
+          // Calculate color based on progress and theme
+          let segmentColor = '';
+          let glowColor = '';
+          
+          if (theme === 'cyber') {
+            // Neon green to cyan gradient
+            const hue = 140 + (progress * 40); // 140 (green) to 180 (cyan)
+            segmentColor = `hsl(${hue}, 80%, 50%)`;
+            glowColor = `rgba(34, 211, 238, ${0.8 - progress * 0.5})`; // Fading glow
+          } else if (theme === 'classic') {
+            // Dark green to light green
+            const lightness = 30 + (progress * 30); // 30% to 60%
+            segmentColor = `hsl(120, 70%, ${lightness}%)`;
+            glowColor = `rgba(34, 197, 94, ${0.5 - progress * 0.3})`;
+          } else {
+            // Minimal: grayscale
+            const lightness = 60 - (progress * 30); // 60% to 30%
+            segmentColor = `hsl(0, 0%, ${lightness}%)`;
+            glowColor = `rgba(255, 255, 255, ${0.3 - progress * 0.2})`;
+          }
+
+          // Scale down slightly towards the tail
+          const segmentScale = 1 - (progress * 0.2);
 
           let headRotation = 0;
           if (isHead) {
@@ -407,14 +448,14 @@ export default function SnakeGame({
               animate={{
                 left: `${segment.x * cellSize}%`,
                 top: `${segment.y * cellSize}%`,
-                scale: isHead && justAte ? 1.2 : 1,
+                scale: isHead && justAte ? 1.2 : segmentScale,
               }}
               transition={{
                 type: 'tween',
                 ease: 'linear',
                 duration: speed / 1000,
               }}
-              className="absolute"
+              className="absolute flex items-center justify-center"
               style={{
                 width: `${cellSize}%`,
                 height: `${cellSize}%`,
@@ -423,10 +464,12 @@ export default function SnakeGame({
             >
               {isHead ? (
                 <div
-                  className={`w-full h-full rounded-t-full rounded-b-sm relative shadow-[0_0_12px_rgba(22,163,74,0.7)] ${
-                    theme === 'cyber' ? 'bg-green-600' : theme === 'classic' ? 'bg-green-800' : 'bg-gray-400'
-                  }`}
-                  style={{ transform: `rotate(${headRotation}deg)` }}
+                  className="w-full h-full rounded-t-full rounded-b-sm relative"
+                  style={{ 
+                    backgroundColor: segmentColor,
+                    boxShadow: `0 0 15px ${glowColor}, inset 0 0 10px rgba(0,0,0,0.3)`,
+                    transform: `rotate(${headRotation}deg)` 
+                  }}
                 >
                   {/* Eyes */}
                   <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
@@ -444,21 +487,21 @@ export default function SnakeGame({
                   )}
                 </div>
               ) : isTail ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className={`w-[60%] h-[60%] rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] ${
-                    theme === 'cyber' ? 'bg-green-700' : theme === 'classic' ? 'bg-green-900' : 'bg-gray-500'
-                  }`} />
-                </div>
+                <div 
+                  className="w-[60%] h-[60%] rounded-full"
+                  style={{ 
+                    backgroundColor: segmentColor,
+                    boxShadow: `0 0 8px ${glowColor}, inset 0 0 5px rgba(0,0,0,0.5)`
+                  }} 
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className={`w-[96%] h-[96%] rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)] ${
-                    theme === 'cyber' 
-                      ? (isEven ? 'bg-green-500' : 'bg-green-600') 
-                      : theme === 'classic' 
-                      ? (isEven ? 'bg-green-700' : 'bg-green-800')
-                      : 'bg-gray-600'
-                  }`} />
-                </div>
+                <div 
+                  className="w-[90%] h-[90%] rounded-lg"
+                  style={{ 
+                    backgroundColor: segmentColor,
+                    boxShadow: `0 0 10px ${glowColor}, inset 0 0 8px rgba(0,0,0,0.3)`
+                  }} 
+                />
               )}
             </motion.div>
           );
