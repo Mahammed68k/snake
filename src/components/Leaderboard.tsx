@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
+import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
+
 interface LeaderboardEntry {
   id: string;
   userId: string;
@@ -15,8 +17,9 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const path = 'leaderboard';
     const q = query(
-      collection(db, 'leaderboard'),
+      collection(db, path),
       orderBy('score', 'desc'),
       limit(50)
     );
@@ -41,7 +44,10 @@ export default function Leaderboard() {
       
       setScores(uniqueScores);
       setLoading(false);
-    }, (error) => {
+    }, (error: any) => {
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.LIST, path);
+      }
       console.error("Error fetching leaderboard:", error);
       setLoading(false);
     });

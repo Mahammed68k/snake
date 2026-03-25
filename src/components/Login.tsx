@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInAnonymously } from 'firebase/auth';
 import { auth, googleProvider, facebookProvider } from '../firebase';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
@@ -30,6 +31,22 @@ export default function Login() {
         return;
       }
       setError(err.message || 'Failed to sign in with Facebook');
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    try {
+      setError(null);
+      setIsGuestLoading(true);
+      await signInAnonymously(auth);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/admin-restricted-operation') {
+        setError('Guest access is restricted. Please enable "Anonymous" provider and "User Sign-up" in your Firebase Console.');
+      } else {
+        setError(err.message || 'Failed to sign in as Guest');
+      }
+      setIsGuestLoading(false);
     }
   };
 
@@ -82,6 +99,29 @@ export default function Login() {
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
             </svg>
             Continue with Facebook
+          </button>
+
+          <div className="flex items-center gap-4 my-2">
+            <div className="flex-1 h-px bg-white/10"></div>
+            <span className="text-gray-500 text-[10px] uppercase tracking-widest">or</span>
+            <div className="flex-1 h-px bg-white/10"></div>
+          </div>
+
+          <button
+            onClick={handleGuestLogin}
+            disabled={isGuestLoading}
+            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl text-cyan-400 font-medium transition-all hover:border-cyan-500/60 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] disabled:opacity-50"
+          >
+            {isGuestLoading ? (
+              <div className="w-5 h-5 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Play as Guest
+              </>
+            )}
           </button>
         </div>
       </div>

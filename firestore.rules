@@ -31,12 +31,12 @@ service cloud.firestore {
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry();
                     
-      // Users can update their own score if it's higher
+      // Users can update their own score if it's higher, or just update their display name
       allow update: if isAuthenticated() && 
                     userId == request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry() &&
-                    request.resource.data.score > resource.data.score;
+                    request.resource.data.score >= resource.data.score;
       
       allow delete: if false;
     }

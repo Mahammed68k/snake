@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Volume2, VolumeX, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const GRID_SIZE = 15;
-const INITIAL_SNAKE = [
-  { x: 7, y: 7 },
-  { x: 7, y: 8 },
-  { x: 7, y: 9 },
-];
 const INITIAL_DIRECTION = { x: 0, y: -1 };
-const GAME_SPEED = 150;
 
 interface Point {
   x: number;
@@ -20,19 +13,119 @@ interface SnakeGameProps {
   onGameOver?: (score: number) => void;
   onShowLeaderboard?: () => void;
   highScore: number;
+  isFullScreen?: boolean;
+  gridSize: number;
+  speed: number;
+  volume: number;
+  theme: 'cyber' | 'classic' | 'minimal';
 }
 
-export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard, highScore }: SnakeGameProps) {
-  const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
+// Sound synthesizer helper
+const playSound = (frequency: number, type: OscillatorType = 'sine', duration: number = 0.1, volume: number = 0.1) => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + duration);
+  } catch (error) {
+    console.warn('Audio not supported or blocked:', error);
+  }
+};
+
+export default function SnakeGame({ 
+  onScoreChange, 
+  onGameOver, 
+  onShowLeaderboard, 
+  highScore, 
+  isFullScreen,
+  gridSize,
+  speed,
+  volume: sfxVolume,
+  theme
+}: SnakeGameProps) {
+  const [snake, setSnake] = useState<Point[]>([
+    { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
+    { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
+    { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
+  ]);
   const [direction, setDirection] = useState<Point>(INITIAL_DIRECTION);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    const saved = localStorage.getItem('snakeMuted');
+    return saved === 'true';
+  });
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
 
   const directionRef = useRef(direction);
   directionRef.current = direction;
   const touchStart = useRef<Point | null>(null);
+
+  useEffect(() => {
+    setSnake([
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
+    ]);
+    setFood(generateFood([]));
+    setDirection(INITIAL_DIRECTION);
+    setScore(0);
+    onScoreChange(0);
+    setGameOver(false);
+    setIsPaused(false);
+  }, [gridSize, speed, theme]);
+
+  useEffect(() => {
+    localStorage.setItem('snakeMuted', isMuted.toString());
+  }, [isMuted]);
+
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+
+  const playMoveSound = useCallback(() => {
+    if (isMuted) return;
+    playSound(150, 'square', 0.05, 0.02 * sfxVolume * 10);
+  }, [isMuted, sfxVolume]);
+
+  const playEatSound = useCallback(() => {
+    if (isMuted) return;
+    playSound(440, 'sine', 0.2, 0.1 * sfxVolume * 10);
+    setTimeout(() => playSound(880, 'sine', 0.2, 0.05 * sfxVolume * 10), 50);
+  }, [isMuted, sfxVolume]);
+
+  const playGameOverSound = useCallback(() => {
+    if (isMuted) return;
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+
+    gainNode.gain.setValueAtTime(0.1 * sfxVolume * 10, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.5);
+  }, [isMuted, sfxVolume]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = {
@@ -91,8 +184,8 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
     let newFood: Point;
     while (true) {
       newFood = {
-        x: Math.floor(Math.random() * GRID_SIZE),
-        y: Math.floor(Math.random() * GRID_SIZE),
+        x: Math.floor(Math.random() * gridSize),
+        y: Math.floor(Math.random() * gridSize),
       };
       // eslint-disable-next-line no-loop-func
       const isOnSnake = currentSnake.some(
@@ -104,13 +197,18 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
   }, []);
 
   const resetGame = () => {
-    setSnake(INITIAL_SNAKE);
+    const initialSnake = [
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
+    ];
+    setSnake(initialSnake);
     setDirection(INITIAL_DIRECTION);
     setScore(0);
     onScoreChange(0);
     setGameOver(false);
     setIsPaused(false);
-    setFood(generateFood(INITIAL_SNAKE));
+    setFood(generateFood(initialSnake));
   };
 
   useEffect(() => {
@@ -158,14 +256,14 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
 
       // Wrap around walls
       if (newHead.x < 0) {
-        newHead.x = GRID_SIZE - 1;
-      } else if (newHead.x >= GRID_SIZE) {
+        newHead.x = gridSize - 1;
+      } else if (newHead.x >= gridSize) {
         newHead.x = 0;
       }
 
       if (newHead.y < 0) {
-        newHead.y = GRID_SIZE - 1;
-      } else if (newHead.y >= GRID_SIZE) {
+        newHead.y = gridSize - 1;
+      } else if (newHead.y >= gridSize) {
         newHead.y = 0;
       }
 
@@ -176,6 +274,7 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
         )
       ) {
         setGameOver(true);
+        playGameOverSound();
         onGameOver?.(score);
         return;
       }
@@ -188,16 +287,18 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
         setScore(newScore);
         onScoreChange(newScore);
         setFood(generateFood(newSnake));
+        playEatSound();
       } else {
         newSnake.pop();
+        playMoveSound();
       }
 
       setSnake(newSnake);
     };
 
-    const timeoutId = setTimeout(moveSnake, GAME_SPEED);
+    const timeoutId = setTimeout(moveSnake, speed);
     return () => clearTimeout(timeoutId);
-  }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood]);
+  }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood, speed, gridSize]);
 
   return (
     <div 
@@ -205,17 +306,31 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Mute Toggle */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsMuted(!isMuted);
+        }}
+        className="absolute top-4 right-4 z-30 p-2 bg-black/40 border border-cyan-500/30 rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all active:scale-95"
+        title={isMuted ? "Unmute" : "Mute"}
+      >
+        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+      </button>
+
       <div
-        className="grid bg-black/40 border-2 border-cyan-500 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden"
+        className={`grid bg-black/40 border-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden transition-all duration-500 ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
+          theme === 'cyber' ? 'border-cyan-500' : theme === 'classic' ? 'border-green-800' : 'border-gray-700'
+        }`}
         style={{
-          gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-          width: 'min(98vw, 98vh)',
-          height: 'min(98vw, 98vh)',
+          gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
+          width: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
+          height: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
         }}
       >
-        {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
-          const x = index % GRID_SIZE;
-          const y = Math.floor(index / GRID_SIZE);
+        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
+          const x = index % gridSize;
+          const y = Math.floor(index / gridSize);
           const snakeIndex = snake.findIndex((segment) => segment.x === x && segment.y === y);
           const isSnake = snakeIndex !== -1;
           const isHead = snakeIndex === 0;
@@ -242,7 +357,9 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
 
             content = (
               <div
-                className="w-full h-full bg-green-600 rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_12px_rgba(22,163,74,0.7)]"
+                className={`w-full h-full rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_12px_rgba(22,163,74,0.7)] ${
+                  theme === 'cyber' ? 'bg-green-600' : theme === 'classic' ? 'bg-green-800' : 'bg-gray-400'
+                }`}
                 style={{ transform: `rotate(${headRotation}deg)` }}
               >
                 {/* Eyes */}
@@ -253,51 +370,64 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
                   <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
                 </div>
                 {/* Forked Tongue */}
-                <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
-                  <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
-                  <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
-                </div>
+                {theme !== 'minimal' && (
+                  <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
+                    <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
+                    <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
+                  </div>
+                )}
               </div>
             );
           } else if (isTail) {
             content = (
               <div className="w-full h-full flex items-center justify-center">
-                <div className="w-[60%] h-[60%] bg-green-700 rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)]" />
+                <div className={`w-[60%] h-[60%] rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] ${
+                  theme === 'cyber' ? 'bg-green-700' : theme === 'classic' ? 'bg-green-900' : 'bg-gray-500'
+                }`} />
               </div>
             );
           } else if (isSnake) {
             const isEven = snakeIndex % 2 === 0;
             content = (
               <div className="w-full h-full flex items-center justify-center">
-                <div className={`w-[96%] h-[96%] ${isEven ? 'bg-green-500' : 'bg-green-600'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)]`} />
+                <div className={`w-[96%] h-[96%] rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)] ${
+                  theme === 'cyber' 
+                    ? (isEven ? 'bg-green-500' : 'bg-green-600') 
+                    : theme === 'classic' 
+                    ? (isEven ? 'bg-green-700' : 'bg-green-800')
+                    : 'bg-gray-600'
+                }`} />
               </div>
             );
           } else if (isFood) {
             content = (
-              <div className="w-full h-full flex items-center justify-center relative animate-bounce">
-                {/* Left Ear */}
-                <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
-                {/* Right Ear */}
-                <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
-                {/* Head */}
-                <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
-                  {/* Eyes */}
-                  <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
-                  <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
-                  {/* Nose */}
-                  <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
-                  {/* Whiskers */}
-                  <div className="absolute top-[55%] left-[5%] w-[20%] h-[2px] bg-white/60 rotate-12" />
-                  <div className="absolute top-[65%] left-[5%] w-[20%] h-[2px] bg-white/60 -rotate-12" />
-                  <div className="absolute top-[55%] right-[5%] w-[20%] h-[2px] bg-white/60 -rotate-12" />
-                  <div className="absolute top-[65%] right-[5%] w-[20%] h-[2px] bg-white/60 rotate-12" />
-                </div>
+              <div className={`w-full h-full flex items-center justify-center relative ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
+                {theme === 'cyber' ? (
+                  <>
+                    {/* Left Ear */}
+                    <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
+                    {/* Right Ear */}
+                    <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
+                    {/* Head */}
+                    <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
+                      {/* Eyes */}
+                      <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                      <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                      {/* Nose */}
+                      <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
+                    </div>
+                  </>
+                ) : theme === 'classic' ? (
+                  <div className="w-[70%] h-[70%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
+                ) : (
+                  <div className="w-[40%] h-[40%] bg-white rounded-sm rotate-45" />
+                )}
               </div>
             );
           }
 
           return (
-            <div key={index} className={`w-full h-full ${!content ? 'border border-cyan-900/10' : ''}`}>
+            <div key={index} className={`w-full h-full ${!content && theme === 'cyber' ? 'border border-cyan-900/10' : ''}`}>
               {content}
             </div>
           );
@@ -347,6 +477,56 @@ export default function SnakeGame({ onScoreChange, onGameOver, onShowLeaderboard
           <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
             PAUSED
           </h2>
+        </div>
+      )}
+
+      {/* On-screen Joystick for Touch Devices */}
+      {isTouchDevice && !isFullScreen && !gameOver && (
+        <div className="mt-8 grid grid-cols-3 gap-3 z-30 pointer-events-auto">
+          <div />
+          <button
+            onClick={() => {
+              if (directionRef.current.y !== 1) setDirection({ x: 0, y: -1 });
+            }}
+            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+          >
+            <ChevronUp size={36} />
+          </button>
+          <div />
+          
+          <button
+            onClick={() => {
+              if (directionRef.current.x !== 1) setDirection({ x: -1, y: 0 });
+            }}
+            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+          >
+            <ChevronLeft size={36} />
+          </button>
+          <button
+            onClick={() => setIsPaused((prev) => !prev)}
+            className="w-16 h-16 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-2xl flex items-center justify-center text-fuchsia-400 active:bg-fuchsia-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(217,70,239,0.2)]"
+          >
+            {isPaused ? <Play size={28} fill="currentColor" /> : <Pause size={28} fill="currentColor" />}
+          </button>
+          <button
+            onClick={() => {
+              if (directionRef.current.x !== -1) setDirection({ x: 1, y: 0 });
+            }}
+            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+          >
+            <ChevronRight size={36} />
+          </button>
+          
+          <div />
+          <button
+            onClick={() => {
+              if (directionRef.current.y !== -1) setDirection({ x: 0, y: 1 });
+            }}
+            className="w-16 h-16 bg-cyan-500/20 border border-cyan-500/50 rounded-2xl flex items-center justify-center text-cyan-400 active:bg-cyan-500/40 active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]"
+          >
+            <ChevronDown size={36} />
+          </button>
+          <div />
         </div>
       )}
     </div>
