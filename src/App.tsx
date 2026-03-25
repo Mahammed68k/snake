@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import SnakeGame from './components/SnakeGame';
 import MusicPlayer from './components/MusicPlayer';
 import Login from './components/Login';
+import Leaderboard from './components/Leaderboard';
 
 export default function App() {
   const [score, setScore] = useState(0);
@@ -23,6 +25,21 @@ export default function App() {
       await signOut(auth);
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const handleGameOver = async (finalScore: number) => {
+    if (!user || finalScore === 0) return;
+    
+    try {
+      await addDoc(collection(db, 'leaderboard'), {
+        userId: user.uid,
+        displayName: user.displayName || user.email?.split('@')[0] || 'Anonymous',
+        score: finalScore,
+        timestamp: serverTimestamp()
+      });
+    } catch (error) {
+      console.error("Error saving score:", error);
     }
   };
 
@@ -104,7 +121,7 @@ export default function App() {
           <div className="relative p-1 rounded-2xl bg-gradient-to-br from-cyan-500/30 to-fuchsia-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)]">
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-fuchsia-500 blur-xl opacity-20 rounded-2xl"></div>
             <div className="relative bg-black rounded-xl p-4 border border-white/5">
-              <SnakeGame onScoreChange={setScore} />
+              <SnakeGame onScoreChange={setScore} onGameOver={handleGameOver} />
             </div>
           </div>
         </div>
@@ -112,6 +129,8 @@ export default function App() {
         {/* Sidebar / Music Player */}
         <div className="w-full lg:w-96 flex flex-col items-center justify-center gap-8">
           <MusicPlayer />
+          
+          <Leaderboard />
           
           {/* Instructions */}
           <div className="w-full max-w-md bg-black/40 border border-cyan-900/50 rounded-xl p-6 backdrop-blur-sm">
@@ -128,7 +147,7 @@ export default function App() {
               </li>
               <li className="flex items-center justify-between">
                 <span>Alt Move</span>
-                <span className="text-fuchsia-400 font-mono">Arrow Keys</span>
+                <span className="text-fuchsia-400 font-mono">Arrow Keys / Swipe</span>
               </li>
               <li className="flex items-center justify-between">
                 <span>Pause</span>

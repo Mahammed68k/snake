@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "A high score entry for the game",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who achieved the score"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user"
+        },
+        "score": {
+          "type": "number",
+          "description": "The score achieved"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the score was achieved"
+        }
+      },
+      "required": ["userId", "displayName", "score", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/leaderboard/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Collection of high scores"
+    }
+  }
+}

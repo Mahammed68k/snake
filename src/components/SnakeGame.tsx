@@ -16,9 +16,10 @@ interface Point {
 
 interface SnakeGameProps {
   onScoreChange: (score: number) => void;
+  onGameOver?: (score: number) => void;
 }
 
-export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
+export default function SnakeGame({ onScoreChange, onGameOver }: SnakeGameProps) {
   const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
   const [direction, setDirection] = useState<Point>(INITIAL_DIRECTION);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
@@ -28,6 +29,45 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
 
   const directionRef = useRef(direction);
   directionRef.current = direction;
+  const touchStart = useRef<Point | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current || gameOver || isPaused) return;
+
+    const touchEnd = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+    };
+
+    const dx = touchEnd.x - touchStart.current.x;
+    const dy = touchEnd.y - touchStart.current.y;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Minimum swipe distance to trigger move
+    if (Math.max(absDx, absDy) > 30) {
+      const { x: curX, y: curY } = directionRef.current;
+      if (absDx > absDy) {
+        // Horizontal swipe
+        if (dx > 0 && curX !== -1) setDirection({ x: 1, y: 0 });
+        else if (dx < 0 && curX !== 1) setDirection({ x: -1, y: 0 });
+      } else {
+        // Vertical swipe
+        if (dy > 0 && curY !== -1) setDirection({ x: 0, y: 1 });
+        else if (dy < 0 && curY !== 1) setDirection({ x: 0, y: -1 });
+      }
+    }
+
+    touchStart.current = null;
+  };
 
   const generateFood = useCallback((currentSnake: Point[]) => {
     let newFood: Point;
@@ -118,6 +158,7 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
         )
       ) {
         setGameOver(true);
+        onGameOver?.(score);
         return;
       }
 
@@ -141,7 +182,11 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
   }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood]);
 
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full relative">
+    <div 
+      className="flex flex-col items-center justify-center w-full h-full relative touch-none"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <div
         className="grid bg-black/40 border-2 border-cyan-500 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.5)] overflow-hidden"
         style={{
@@ -179,50 +224,34 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
 
             content = (
               <div
-                className="w-full h-full relative z-20 flex items-center justify-center"
+                className="w-full h-full bg-green-600 rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_10px_rgba(22,163,74,0.6)]"
                 style={{ transform: `rotate(${headRotation}deg)` }}
               >
-                {/* Cobra Hood (Flattened Neck Ribs) */}
-                <div className="absolute top-[5%] -left-[60%] w-[220%] h-[95%] bg-stone-800 rounded-t-[45%] rounded-b-[40%] shadow-[0_0_20px_rgba(0,0,0,0.9)] border-[2px] border-stone-700 overflow-hidden animate-hood-flare origin-bottom">
-                  {/* Rib lines texture */}
-                  <div className="absolute inset-0 bg-[repeating-linear-gradient(to_bottom,transparent,transparent_3px,rgba(0,0,0,0.5)_3px,rgba(0,0,0,0.5)_5px)]" />
-                  
-                  {/* Spectacle Mark */}
-                  <div className="absolute bottom-[15%] left-1/2 -translate-x-1/2 w-[45%] h-[30%] border-[2px] border-amber-200/50 rounded-full z-10" />
-                  <div className="absolute bottom-[25%] left-[32%] w-[12%] h-[12%] bg-amber-200/50 rounded-full z-10" />
-                  <div className="absolute bottom-[25%] right-[32%] w-[12%] h-[12%] bg-amber-200/50 rounded-full z-10" />
+                {/* Eyes */}
+                <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
                 </div>
-                
-                {/* Cobra Head */}
-                <div className="absolute top-[-15%] w-[70%] h-[70%] bg-stone-900 rounded-t-full rounded-b-xl z-10 shadow-lg">
-                  {/* Eyes (Slit pupils) */}
-                  <div className="absolute top-[25%] left-[10%] w-[30%] h-[30%] bg-yellow-500 rounded-full shadow-inner overflow-hidden">
-                    <div className="absolute top-[10%] left-[40%] w-[20%] h-[80%] bg-black rounded-full" />
-                  </div>
-                  <div className="absolute top-[25%] right-[10%] w-[30%] h-[30%] bg-yellow-500 rounded-full shadow-inner overflow-hidden">
-                    <div className="absolute top-[10%] left-[40%] w-[20%] h-[80%] bg-black rounded-full" />
-                  </div>
-                  {/* Forked Tongue */}
-                  <div className="absolute -top-[40%] left-1/2 -translate-x-1/2 w-[8%] h-[50%] bg-red-600 flex justify-center -z-10">
-                    <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-600 rotate-45 origin-bottom-right" />
-                    <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-600 -rotate-45 origin-bottom-left" />
-                  </div>
+                <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                </div>
+                {/* Forked Tongue */}
+                <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
+                  <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
+                  <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
                 </div>
               </div>
             );
           } else if (isTail) {
             content = (
               <div className="w-full h-full flex items-center justify-center">
-                <div className="w-[50%] h-[50%] bg-stone-800 rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.8)]" />
+                <div className="w-[60%] h-[60%] bg-green-700 rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)]" />
               </div>
             );
           } else if (isSnake) {
             const isEven = snakeIndex % 2 === 0;
             content = (
               <div className="w-full h-full flex items-center justify-center">
-                <div className={`w-[90%] h-[90%] ${isEven ? 'bg-stone-700' : 'bg-stone-800'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.6)] relative overflow-hidden`}>
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:3px_3px]" />
-                </div>
+                <div className={`w-[90%] h-[90%] ${isEven ? 'bg-green-500' : 'bg-green-600'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)]`} />
               </div>
             );
           } else if (isFood) {
