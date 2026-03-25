@@ -92,53 +92,53 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
     if (gameOver || isPaused) return;
 
     const moveSnake = () => {
-      setSnake((prevSnake) => {
-        const head = prevSnake[0];
-        const newHead = {
-          x: head.x + directionRef.current.x,
-          y: head.y + directionRef.current.y,
-        };
+      const head = snake[0];
+      const newHead = {
+        x: head.x + directionRef.current.x,
+        y: head.y + directionRef.current.y,
+      };
 
-        // Check collision with walls
-        if (
-          newHead.x < 0 ||
-          newHead.x >= GRID_SIZE ||
-          newHead.y < 0 ||
-          newHead.y >= GRID_SIZE
-        ) {
-          setGameOver(true);
-          return prevSnake;
-        }
+      // Wrap around walls
+      if (newHead.x < 0) {
+        newHead.x = GRID_SIZE - 1;
+      } else if (newHead.x >= GRID_SIZE) {
+        newHead.x = 0;
+      }
 
-        // Check collision with self
-        if (
-          prevSnake.some(
-            (segment) => segment.x === newHead.x && segment.y === newHead.y
-          )
-        ) {
-          setGameOver(true);
-          return prevSnake;
-        }
+      if (newHead.y < 0) {
+        newHead.y = GRID_SIZE - 1;
+      } else if (newHead.y >= GRID_SIZE) {
+        newHead.y = 0;
+      }
 
-        const newSnake = [newHead, ...prevSnake];
+      // Check collision with self
+      if (
+        snake.some(
+          (segment) => segment.x === newHead.x && segment.y === newHead.y
+        )
+      ) {
+        setGameOver(true);
+        return;
+      }
 
-        // Check food collision
-        if (newHead.x === food.x && newHead.y === food.y) {
-          const newScore = score + 10;
-          setScore(newScore);
-          onScoreChange(newScore);
-          setFood(generateFood(newSnake));
-        } else {
-          newSnake.pop();
-        }
+      const newSnake = [newHead, ...snake];
 
-        return newSnake;
-      });
+      // Check food collision
+      if (newHead.x === food.x && newHead.y === food.y) {
+        const newScore = score + 10;
+        setScore(newScore);
+        onScoreChange(newScore);
+        setFood(generateFood(newSnake));
+      } else {
+        newSnake.pop();
+      }
+
+      setSnake(newSnake);
     };
 
-    const intervalId = setInterval(moveSnake, GAME_SPEED);
-    return () => clearInterval(intervalId);
-  }, [food, gameOver, isPaused, score, onScoreChange, generateFood]);
+    const timeoutId = setTimeout(moveSnake, GAME_SPEED);
+    return () => clearTimeout(timeoutId);
+  }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood]);
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full relative">
@@ -153,23 +153,90 @@ export default function SnakeGame({ onScoreChange }: SnakeGameProps) {
         {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
           const x = index % GRID_SIZE;
           const y = Math.floor(index / GRID_SIZE);
-          const isSnake = snake.some((segment) => segment.x === x && segment.y === y);
-          const isHead = snake[0].x === x && snake[0].y === y;
+          const snakeIndex = snake.findIndex((segment) => segment.x === x && segment.y === y);
+          const isSnake = snakeIndex !== -1;
+          const isHead = snakeIndex === 0;
+          const isTail = snakeIndex === snake.length - 1 && snake.length > 1;
           const isFood = food.x === x && food.y === y;
 
+          let content = null;
+
+          if (isHead) {
+            let headRotation = 0;
+            if (snake.length > 1) {
+              const dx = snake[0].x - snake[1].x;
+              const dy = snake[0].y - snake[1].y;
+              if (dx === 1 || dx < -1) headRotation = 90;
+              else if (dx === -1 || dx > 1) headRotation = -90;
+              else if (dy === 1 || dy < -1) headRotation = 180;
+              else if (dy === -1 || dy > 1) headRotation = 0;
+            } else {
+              if (directionRef.current.x === 1) headRotation = 90;
+              else if (directionRef.current.x === -1) headRotation = -90;
+              else if (directionRef.current.y === 1) headRotation = 180;
+              else if (directionRef.current.y === -1) headRotation = 0;
+            }
+
+            content = (
+              <div
+                className="w-full h-full bg-green-600 rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_10px_rgba(22,163,74,0.6)]"
+                style={{ transform: `rotate(${headRotation}deg)` }}
+              >
+                {/* Eyes */}
+                <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                </div>
+                <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                </div>
+                {/* Forked Tongue */}
+                <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
+                  <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
+                  <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
+                </div>
+              </div>
+            );
+          } else if (isTail) {
+            content = (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="w-[60%] h-[60%] bg-green-700 rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)]" />
+              </div>
+            );
+          } else if (isSnake) {
+            const isEven = snakeIndex % 2 === 0;
+            content = (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className={`w-[90%] h-[90%] ${isEven ? 'bg-green-500' : 'bg-green-600'} rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)]`} />
+              </div>
+            );
+          } else if (isFood) {
+            content = (
+              <div className="w-full h-full flex items-center justify-center relative animate-bounce">
+                {/* Left Ear */}
+                <div className="absolute top-[15%] left-[15%] w-[30%] h-[30%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
+                {/* Right Ear */}
+                <div className="absolute top-[15%] right-[15%] w-[30%] h-[30%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
+                {/* Head */}
+                <div className="absolute top-[25%] w-[75%] h-[65%] bg-orange-400 rounded-full shadow-sm">
+                  {/* Eyes */}
+                  <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                  <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                  {/* Nose */}
+                  <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
+                  {/* Whiskers */}
+                  <div className="absolute top-[55%] left-[5%] w-[20%] h-[2px] bg-white/60 rotate-12" />
+                  <div className="absolute top-[65%] left-[5%] w-[20%] h-[2px] bg-white/60 -rotate-12" />
+                  <div className="absolute top-[55%] right-[5%] w-[20%] h-[2px] bg-white/60 -rotate-12" />
+                  <div className="absolute top-[65%] right-[5%] w-[20%] h-[2px] bg-white/60 rotate-12" />
+                </div>
+              </div>
+            );
+          }
+
           return (
-            <div
-              key={index}
-              className={`w-full h-full ${
-                isHead
-                  ? 'bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.8)] rounded-sm z-10'
-                  : isSnake
-                  ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)] rounded-sm opacity-80'
-                  : isFood
-                  ? 'bg-green-400 shadow-[0_0_12px_rgba(74,222,128,0.9)] rounded-full animate-pulse'
-                  : 'border border-cyan-900/20'
-              }`}
-            />
+            <div key={index} className={`w-full h-full ${!content ? 'border border-cyan-900/20' : ''}`}>
+              {content}
+            </div>
           );
         })}
       </div>
