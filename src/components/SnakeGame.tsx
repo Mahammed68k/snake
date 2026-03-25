@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const INITIAL_DIRECTION = { x: 0, y: -1 };
 
@@ -64,10 +65,7 @@ export default function SnakeGame({
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [isMuted, setIsMuted] = useState<boolean>(() => {
-    const saved = localStorage.getItem('snakeMuted');
-    return saved === 'true';
-  });
+  const [justAte, setJustAte] = useState<boolean>(false);
 
   const directionRef = useRef(direction);
   directionRef.current = direction;
@@ -87,23 +85,16 @@ export default function SnakeGame({
     setIsPaused(false);
   }, [gridSize, speed, theme]);
 
-  useEffect(() => {
-    localStorage.setItem('snakeMuted', isMuted.toString());
-  }, [isMuted]);
-
   const playMoveSound = useCallback(() => {
-    if (isMuted) return;
     playSound(150, 'square', 0.05, 0.02 * sfxVolume * 10);
-  }, [isMuted, sfxVolume]);
+  }, [sfxVolume]);
 
   const playEatSound = useCallback(() => {
-    if (isMuted) return;
-    playSound(440, 'sine', 0.2, 0.1 * sfxVolume * 10);
-    setTimeout(() => playSound(880, 'sine', 0.2, 0.05 * sfxVolume * 10), 50);
-  }, [isMuted, sfxVolume]);
+    // Single pleasant beep (E5)
+    playSound(659.25, 'sine', 0.15, 0.08 * sfxVolume * 10);
+  }, [sfxVolume]);
 
   const playGameOverSound = useCallback(() => {
-    if (isMuted) return;
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
@@ -120,7 +111,7 @@ export default function SnakeGame({
 
     oscillator.start();
     oscillator.stop(audioCtx.currentTime + 0.5);
-  }, [isMuted, sfxVolume]);
+  }, [sfxVolume]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = {
@@ -283,6 +274,8 @@ export default function SnakeGame({
         onScoreChange(newScore);
         setFood(generateFood(newSnake));
         playEatSound();
+        setJustAte(true);
+        setTimeout(() => setJustAte(false), 200);
       } else {
         newSnake.pop();
         playMoveSound();
@@ -295,50 +288,83 @@ export default function SnakeGame({
     return () => clearTimeout(timeoutId);
   }, [snake, food, gameOver, isPaused, score, onScoreChange, generateFood, speed, gridSize]);
 
+  const cellSize = 100 / gridSize;
+
   return (
     <div 
       className="flex flex-col items-center justify-center w-full h-full relative touch-none"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Mute Toggle */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsMuted(!isMuted);
-        }}
-        className="absolute top-4 right-4 z-30 p-2 bg-black/40 border border-cyan-500/30 rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all active:scale-95"
-        title={isMuted ? "Unmute" : "Mute"}
-      >
-        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-      </button>
-
       <div
-        className={`grid bg-black/40 border-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden transition-all duration-500 ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
+        className={`relative bg-black/40 border-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden transition-all duration-500 ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
           theme === 'cyber' ? 'border-cyan-500' : theme === 'classic' ? 'border-green-800' : 'border-gray-700'
         }`}
         style={{
-          gridTemplateColumns: `repeat(${gridSize}, 1fr)`,
           width: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
           height: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
         }}
       >
-        {Array.from({ length: gridSize * gridSize }).map((_, index) => {
-          const x = index % gridSize;
-          const y = Math.floor(index / gridSize);
-          const snakeIndex = snake.findIndex((segment) => segment.x === x && segment.y === y);
-          const isSnake = snakeIndex !== -1;
-          const isHead = snakeIndex === 0;
-          const isTail = snakeIndex === snake.length - 1 && snake.length > 1;
-          const isFood = food.x === x && food.y === y;
+        {/* Grid Background */}
+        <div 
+          className="absolute inset-0 grid"
+          style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
+        >
+          {Array.from({ length: gridSize * gridSize }).map((_, index) => (
+            <div key={index} className={`w-full h-full ${theme === 'cyber' ? 'border border-cyan-900/10' : ''}`} />
+          ))}
+        </div>
 
-          let content = null;
+        {/* Food */}
+        <motion.div
+          key={`food-${food.x}-${food.y}`}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="absolute"
+          style={{
+            width: `${cellSize}%`,
+            height: `${cellSize}%`,
+            left: `${food.x * cellSize}%`,
+            top: `${food.y * cellSize}%`,
+          }}
+        >
+          <div className={`w-full h-full flex items-center justify-center relative ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
+            {theme === 'cyber' ? (
+              <>
+                {/* Left Ear */}
+                <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
+                {/* Right Ear */}
+                <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
+                {/* Head */}
+                <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
+                  {/* Eyes */}
+                  <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                  <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
+                  {/* Nose */}
+                  <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
+                </div>
+              </>
+            ) : theme === 'classic' ? (
+              <div className="w-[70%] h-[70%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
+            ) : (
+              <div className="w-[40%] h-[40%] bg-white rounded-sm rotate-45" />
+            )}
+          </div>
+        </motion.div>
 
+        {/* Snake */}
+        {snake.map((segment, index) => {
+          const isHead = index === 0;
+          const isTail = index === snake.length - 1 && snake.length > 1;
+          const isEven = index % 2 === 0;
+
+          let headRotation = 0;
           if (isHead) {
-            let headRotation = 0;
             if (snake.length > 1) {
               const dx = snake[0].x - snake[1].x;
               const dy = snake[0].y - snake[1].y;
+              // Handle wrap-around rotation
               if (dx === 1 || dx < -1) headRotation = 90;
               else if (dx === -1 || dx > 1) headRotation = -90;
               else if (dy === 1 || dy < -1) headRotation = 180;
@@ -349,82 +375,70 @@ export default function SnakeGame({
               else if (directionRef.current.y === 1) headRotation = 180;
               else if (directionRef.current.y === -1) headRotation = 0;
             }
-
-            content = (
-              <div
-                className={`w-full h-full rounded-t-full rounded-b-sm relative z-10 shadow-[0_0_12px_rgba(22,163,74,0.7)] ${
-                  theme === 'cyber' ? 'bg-green-600' : theme === 'classic' ? 'bg-green-800' : 'bg-gray-400'
-                }`}
-                style={{ transform: `rotate(${headRotation}deg)` }}
-              >
-                {/* Eyes */}
-                <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
-                </div>
-                <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                  <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
-                </div>
-                {/* Forked Tongue */}
-                {theme !== 'minimal' && (
-                  <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
-                    <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
-                    <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
-                  </div>
-                )}
-              </div>
-            );
-          } else if (isTail) {
-            content = (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className={`w-[60%] h-[60%] rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] ${
-                  theme === 'cyber' ? 'bg-green-700' : theme === 'classic' ? 'bg-green-900' : 'bg-gray-500'
-                }`} />
-              </div>
-            );
-          } else if (isSnake) {
-            const isEven = snakeIndex % 2 === 0;
-            content = (
-              <div className="w-full h-full flex items-center justify-center">
-                <div className={`w-[96%] h-[96%] rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)] ${
-                  theme === 'cyber' 
-                    ? (isEven ? 'bg-green-500' : 'bg-green-600') 
-                    : theme === 'classic' 
-                    ? (isEven ? 'bg-green-700' : 'bg-green-800')
-                    : 'bg-gray-600'
-                }`} />
-              </div>
-            );
-          } else if (isFood) {
-            content = (
-              <div className={`w-full h-full flex items-center justify-center relative ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
-                {theme === 'cyber' ? (
-                  <>
-                    {/* Left Ear */}
-                    <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tl-md rotate-[-45deg]" />
-                    {/* Right Ear */}
-                    <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-orange-500 rounded-tr-md rotate-[45deg]" />
-                    {/* Head */}
-                    <div className="absolute top-[20%] w-[85%] h-[75%] bg-orange-400 rounded-full shadow-sm">
-                      {/* Eyes */}
-                      <div className="absolute top-[30%] left-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
-                      <div className="absolute top-[30%] right-[20%] w-[15%] h-[20%] bg-gray-900 rounded-full" />
-                      {/* Nose */}
-                      <div className="absolute top-[55%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-500 rounded-full" />
-                    </div>
-                  </>
-                ) : theme === 'classic' ? (
-                  <div className="w-[70%] h-[70%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
-                ) : (
-                  <div className="w-[40%] h-[40%] bg-white rounded-sm rotate-45" />
-                )}
-              </div>
-            );
           }
 
           return (
-            <div key={index} className={`w-full h-full ${!content && theme === 'cyber' ? 'border border-cyan-900/10' : ''}`}>
-              {content}
-            </div>
+            <motion.div
+              key={`${index}-${segment.x}-${segment.y}`}
+              layout
+              initial={false}
+              animate={{
+                left: `${segment.x * cellSize}%`,
+                top: `${segment.y * cellSize}%`,
+                scale: isHead && justAte ? 1.2 : 1,
+              }}
+              transition={{
+                type: 'tween',
+                ease: 'linear',
+                duration: speed / 1000,
+              }}
+              className="absolute"
+              style={{
+                width: `${cellSize}%`,
+                height: `${cellSize}%`,
+                zIndex: isHead ? 20 : 10 - index,
+              }}
+            >
+              {isHead ? (
+                <div
+                  className={`w-full h-full rounded-t-full rounded-b-sm relative shadow-[0_0_12px_rgba(22,163,74,0.7)] ${
+                    theme === 'cyber' ? 'bg-green-600' : theme === 'classic' ? 'bg-green-800' : 'bg-gray-400'
+                  }`}
+                  style={{ transform: `rotate(${headRotation}deg)` }}
+                >
+                  {/* Eyes */}
+                  <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  </div>
+                  <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
+                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  </div>
+                  {/* Forked Tongue */}
+                  {theme !== 'minimal' && (
+                    <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
+                      <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
+                      <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
+                    </div>
+                  )}
+                </div>
+              ) : isTail ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className={`w-[60%] h-[60%] rounded-full shadow-[inset_0_0_5px_rgba(0,0,0,0.5)] ${
+                    theme === 'cyber' ? 'bg-green-700' : theme === 'classic' ? 'bg-green-900' : 'bg-gray-500'
+                  }`} />
+                </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className={`w-[96%] h-[96%] rounded-lg shadow-[inset_0_0_8px_rgba(0,0,0,0.3)] ${
+                    theme === 'cyber' 
+                      ? (isEven ? 'bg-green-500' : 'bg-green-600') 
+                      : theme === 'classic' 
+                      ? (isEven ? 'bg-green-700' : 'bg-green-800')
+                      : 'bg-gray-600'
+                  }`} />
+                </div>
+              )}
+            </motion.div>
           );
         })}
       </div>
@@ -441,39 +455,68 @@ export default function SnakeGame({
         )}
       </div>
 
-      {gameOver && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm rounded-lg z-20">
-          <h2 className="text-4xl font-bold text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">
-            GAME OVER
-          </h2>
-          <div className="flex flex-col items-center gap-2 mb-6">
-            <p className="text-xl text-cyan-300">Final Score: {score}</p>
-            <p className="text-sm text-fuchsia-400 uppercase tracking-widest">High Score: {Math.max(score, highScore)}</p>
-          </div>
-          <div className="flex flex-col gap-3 w-full max-w-[200px]">
-            <button
-              onClick={resetGame}
-              className="w-full px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)]"
+      <AnimatePresence>
+        {gameOver && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(8px)' }}
+            exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-20"
+          >
+            <motion.h2 
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-4xl font-bold text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
             >
-              PLAY AGAIN
-            </button>
-            <button
-              onClick={onShowLeaderboard}
-              className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-all"
+              GAME OVER
+            </motion.h2>
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col items-center gap-2 mb-6"
             >
-              LEADERBOARD
-            </button>
-          </div>
-        </div>
-      )}
+              <p className="text-xl text-cyan-300">Final Score: {score}</p>
+              <p className="text-sm text-fuchsia-400 uppercase tracking-widest">High Score: {Math.max(score, highScore)}</p>
+            </motion.div>
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-col gap-3 w-full max-w-[200px]"
+            >
+              <button
+                onClick={resetGame}
+                className="w-full px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)]"
+              >
+                PLAY AGAIN
+              </button>
+              <button
+                onClick={onShowLeaderboard}
+                className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-all"
+              >
+                LEADERBOARD
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {isPaused && !gameOver && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-lg z-20">
-          <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-            PAUSED
-          </h2>
-        </div>
-      )}
+      <AnimatePresence>
+        {isPaused && !gameOver && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(4px)' }}
+            exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-20"
+          >
+            <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+              PAUSED
+            </h2>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

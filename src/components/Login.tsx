@@ -65,7 +65,7 @@ export default function Login() {
 
       <div className="z-10 bg-black/50 border border-cyan-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(6,182,212,0.2)] backdrop-blur-md w-full max-w-md flex flex-col items-center">
         <h1 className="text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] tracking-wider mb-2">
-          NEON SNAKE
+          SNAKE
         </h1>
         <p className="text-cyan-300 font-display tracking-widest text-sm mb-8 opacity-80">
           LOGIN TO PLAY

@@ -3,6 +3,7 @@ import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 
 import { collection, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
+import { motion } from 'motion/react';
 import SnakeGame from './components/SnakeGame';
 import Login from './components/Login';
 import Leaderboard from './components/Leaderboard';
@@ -189,10 +190,10 @@ export default function App() {
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
           <div className="flex flex-col pointer-events-auto">
             <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
-              NEON SNAKE
+              SNAKE
             </h1>
             <p className="text-cyan-300 font-display tracking-widest text-[10px] md:text-xs mt-0.5 opacity-80">
-              CYBERPUNK EDITION
+              CYBER EDITION
             </p>
           </div>
 
@@ -250,7 +251,7 @@ export default function App() {
                     <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Edit Profile
+                    User Name
                   </button>
 
                   <button
@@ -315,27 +316,34 @@ export default function App() {
             )}
 
             {/* Score Display */}
-            <div className="flex gap-3 items-stretch">
+            <div className="flex gap-2 md:gap-3 items-stretch">
               <button
                 onClick={() => setIsFullScreen(true)}
-                className="bg-black/60 border border-cyan-500/30 hover:border-cyan-500/80 rounded-xl px-4 flex items-center justify-center text-cyan-400 transition-all hover:bg-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
+                className="bg-black/60 border border-cyan-500/30 hover:border-cyan-500/80 rounded-xl px-2.5 md:px-4 flex items-center justify-center text-cyan-400 transition-all hover:bg-cyan-500/20 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
                 title="Full Screen"
               >
-                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                 </svg>
               </button>
-              <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-5 py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
-                <p className="text-cyan-500/60 text-[10px] uppercase tracking-[0.2em] font-bold mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
-                <p className="text-[30px] font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
+              <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
+                <p className="text-cyan-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
+                <p className="text-xl md:text-[30px] font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
                   {score.toString().padStart(4, '0')}
                 </p>
               </div>
-              <div className="bg-black/60 border rounded-xl px-5 py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
-                <p className="text-fuchsia-500/60 text-[10px] uppercase tracking-[0.2em] font-normal mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>High_Record</p>
-                <p className="text-2xl md:text-3xl font-black text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}>
+              <div className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
+                <p className="text-fuchsia-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-normal mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>High_Record</p>
+                <motion.p 
+                  key={highScore}
+                  initial={{ scale: 1.3, filter: 'brightness(1.5)' }}
+                  animate={{ scale: 1, filter: 'brightness(1)' }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                  className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
+                  style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}
+                >
                   {highScore.toString().padStart(4, '0')}
-                </p>
+                </motion.p>
               </div>
             </div>
           </div>
@@ -431,7 +439,7 @@ export default function App() {
               </svg>
             </button>
 
-            <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 tracking-wider">EDIT PROFILE</h2>
+            <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 tracking-wider">USER NAME</h2>
             
             <form onSubmit={handleUpdateName} className="space-y-4">
               <div>

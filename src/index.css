@@ -13,7 +13,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom scrollbar for neon aesthetic */
+/* Custom scrollbar aesthetic */
 ::-webkit-scrollbar {
   width: 8px;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "Neon Snake & Beats",
-  "description": "A dark neon aesthetic web app combining a Snake game with a music player.",
+  "name": "Snake Game",
+  "description": "A dark aesthetic web app featuring a classic Snake game.",
   "requestFramePermissions": []
 }
