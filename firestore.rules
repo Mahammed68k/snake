@@ -21,18 +21,20 @@ service cloud.firestore {
              request.resource.data.timestamp is timestamp;
     }
 
-    match /leaderboard/{userId} {
+    match /{collection}/{userId} {
       // Anyone can read the leaderboard
-      allow read: if true;
+      allow read: if collection in ['leaderboard', 'leaderboard_google', 'leaderboard_facebook', 'leaderboard_guest'];
       
       // Users can only create their own scores
-      allow create: if isAuthenticated() && 
+      allow create: if collection in ['leaderboard_google', 'leaderboard_facebook', 'leaderboard_guest'] &&
+                    isAuthenticated() && 
                     userId == request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry();
                     
       // Users can update their own score if it's higher, or just update their display name
-      allow update: if isAuthenticated() && 
+      allow update: if collection in ['leaderboard_google', 'leaderboard_facebook', 'leaderboard_guest'] &&
+                    isAuthenticated() && 
                     userId == request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry() &&

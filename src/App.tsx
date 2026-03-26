@@ -4,6 +4,7 @@ import { collection, serverTimestamp, doc, getDoc, setDoc } from 'firebase/fires
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
+import { Settings, X, Palette } from 'lucide-react';
 import SnakeGame from './components/SnakeGame';
 import Login from './components/Login';
 import Leaderboard from './components/Leaderboard';
@@ -13,7 +14,7 @@ import IntroScreen from './components/IntroScreen';
 interface GameSettings {
   gridSize: number;
   speed: number;
-  theme: 'cyber' | 'classic' | 'minimal';
+  theme: 'cyber' | 'plasma' | 'normal';
 }
 
 // Error Boundary Component
@@ -31,6 +32,13 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'menu' | 'playing'>('intro');
+
+  const getUserProvider = (u: User | null): 'google' | 'facebook' | 'guest' => {
+    if (!u || u.isAnonymous) return 'guest';
+    const providerId = u.providerData[0]?.providerId;
+    if (providerId === 'facebook.com') return 'facebook';
+    return 'google';
+  };
 
   const handleSyncAccount = async (provider: 'google' | 'facebook') => {
     if (!user) return;
@@ -53,7 +61,14 @@ export default function App() {
   };
   const [settings, setSettings] = useState<GameSettings>(() => {
     const saved = localStorage.getItem('snakeSettings');
-    return saved ? JSON.parse(saved) : {
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Handle legacy themes
+      if (parsed.theme === 'classic') parsed.theme = 'plasma';
+      if (parsed.theme === 'minimal' || parsed.theme === 'focus') parsed.theme = 'normal';
+      return parsed;
+    }
+    return {
       gridSize: 15,
       speed: 150,
       theme: 'cyber'
@@ -100,12 +115,14 @@ export default function App() {
     if (!auth.currentUser || !newName.trim() || isUpdating) return;
 
     setIsUpdating(true);
-    const path = `leaderboard/${auth.currentUser.uid}`;
+    const provider = getUserProvider(auth.currentUser);
+    const collectionName = `leaderboard_${provider}`;
+    const path = `${collectionName}/${auth.currentUser.uid}`;
     try {
       await updateProfile(auth.currentUser, { displayName: newName.trim() });
       
       // Update leaderboard entry if it exists
-      const scoreRef = doc(db, 'leaderboard', auth.currentUser.uid);
+      const scoreRef = doc(db, collectionName, auth.currentUser.uid);
       const scoreDoc = await getDoc(scoreRef);
       if (scoreDoc.exists()) {
         await setDoc(scoreRef, { displayName: newName.trim() }, { merge: true });
@@ -135,9 +152,11 @@ export default function App() {
   const handleGameOver = async (finalScore: number) => {
     if (!user || finalScore === 0) return;
     
-    const path = `leaderboard/${user.uid}`;
+    const provider = getUserProvider(user);
+    const collectionName = `leaderboard_${provider}`;
+    const path = `${collectionName}/${user.uid}`;
     try {
-      const scoreRef = doc(db, 'leaderboard', user.uid);
+      const scoreRef = doc(db, collectionName, user.uid);
       const scoreDoc = await getDoc(scoreRef);
       
       const displayName = user.isAnonymous 
@@ -207,15 +226,13 @@ export default function App() {
               <button 
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="p-2.5 bg-black/60 border border-cyan-500/30 rounded-xl text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/60 transition-all active:scale-95 shadow-[0_0_20px_rgba(6,182,212,0.1)] backdrop-blur-xl group"
-                title="Menu"
+                title="Settings"
               >
-                <svg className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {showProfileMenu ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
+                {showProfileMenu ? (
+                  <X className="w-6 h-6 transition-transform duration-300 group-hover:scale-110" />
+                ) : (
+                  <Settings className="w-6 h-6 transition-transform duration-300 group-hover:rotate-90" />
+                )}
               </button>
             )}
 
@@ -230,35 +247,34 @@ export default function App() {
                   <div className="px-3 py-2 border-bottom border-white/5 mb-1">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account</p>
                     <p className="text-xs text-cyan-400 truncate font-mono">
-                      {user.email || 'Guest User'}
+                      {user.isAnonymous ? `Guest_${user.uid.slice(0, 5)}` : (user.email || 'User')}
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setShowProfileModal(true);
-                      setShowProfileMenu(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-xs text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-lg transition-colors group"
-                  >
-                    <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    User Name
-                  </button>
+                  {!user.isAnonymous && (
+                    <button
+                      onClick={() => {
+                        setShowProfileModal(true);
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-xs text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-lg transition-colors group"
+                    >
+                      <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      User Name
+                    </button>
+                  )}
 
                   <button
                     onClick={() => {
                       setShowSettings(true);
                       setShowProfileMenu(false);
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-xs text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-400 rounded-lg transition-colors group"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold tracking-wider text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors group drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]"
                   >
-                    <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Settings
+                    <Palette className="w-4 h-4" />
+                    THEME
                   </button>
 
                   {user.isAnonymous && (
@@ -466,7 +482,7 @@ export default function App() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <Leaderboard />
+            <Leaderboard provider={getUserProvider(user)} />
           </div>
         </div>
       )}

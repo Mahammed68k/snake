@@ -18,7 +18,7 @@ interface SnakeGameProps {
   isFullScreen?: boolean;
   gridSize: number;
   speed: number;
-  theme: 'cyber' | 'classic' | 'minimal';
+  theme: 'cyber' | 'plasma' | 'normal';
 }
 
 export default function SnakeGame({ 
@@ -296,7 +296,7 @@ export default function SnakeGame({
     >
       <div
         className={`relative bg-black/40 border-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden transition-all duration-500 ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
-          theme === 'cyber' ? 'border-cyan-500' : theme === 'classic' ? 'border-green-800' : 'border-gray-700'
+          theme === 'cyber' ? 'border-cyan-500' : theme === 'plasma' ? 'border-fuchsia-500' : 'border-zinc-700'
         }`}
         style={{
           width: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
@@ -309,7 +309,11 @@ export default function SnakeGame({
           style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
         >
           {Array.from({ length: gridSize * gridSize }).map((_, index) => (
-            <div key={index} className={`w-full h-full ${theme === 'cyber' ? 'border border-cyan-900/10' : ''}`} />
+            <div key={index} className={`w-full h-full ${
+              theme === 'cyber' ? 'border border-cyan-900/10' : 
+              theme === 'plasma' ? 'border border-fuchsia-900/10' : 
+              'border border-white/5'
+            }`} />
           ))}
         </div>
 
@@ -320,9 +324,9 @@ export default function SnakeGame({
             className={`absolute flex items-center justify-center ${
               theme === 'cyber' 
                 ? 'bg-red-900/40 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' 
-                : theme === 'classic'
-                ? 'bg-gray-700 border-2 border-gray-900'
-                : 'bg-gray-800'
+                : theme === 'plasma'
+                ? 'bg-purple-900/40 border border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
+                : 'bg-zinc-900 border border-zinc-700 shadow-[0_0_15px_rgba(0,0,0,0.8)]'
             }`}
             style={{
               width: `${cellSize}%`,
@@ -334,6 +338,12 @@ export default function SnakeGame({
             {theme === 'cyber' && (
               <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(239,68,68,0.2)_2px,rgba(239,68,68,0.2)_4px)]" />
             )}
+            {theme === 'plasma' && (
+              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(168,85,247,0.2)_2px,rgba(168,85,247,0.2)_4px)]" />
+            )}
+            {theme === 'normal' && (
+              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,0.05)_2px,rgba(255,255,255,0.05)_4px)]" />
+            )}
           </div>
         ))}
 
@@ -341,8 +351,16 @@ export default function SnakeGame({
         <motion.div
           key={`food-${food.x}-${food.y}`}
           initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          animate={{ 
+            scale: [1, 1.15, 1], 
+            opacity: 1,
+            rotate: [0, 5, -5, 0]
+          }}
+          transition={{ 
+            scale: { repeat: Infinity, duration: 1.5, ease: "easeInOut" },
+            rotate: { repeat: Infinity, duration: 0.5, ease: "easeInOut" },
+            opacity: { duration: 0.3 }
+          }}
           className="absolute"
           style={{
             width: `${cellSize}%`,
@@ -374,20 +392,18 @@ export default function SnakeGame({
                   <div className="absolute top-[70%] -right-[20%] w-[40%] h-[2%] bg-white/50 rotate-12" />
                 </div>
               </div>
-            ) : theme === 'classic' ? (
-              <div className="relative w-[80%] h-[80%] drop-shadow-[0_0_5px_rgba(156,163,175,0.5)]">
-                 {/* Classic Mouse */}
-                 <div className="absolute -bottom-[10%] left-1/2 -translate-x-1/2 w-[8%] h-[40%] bg-gray-400 rounded-full origin-top rotate-[20deg]" />
-                 <div className="absolute top-[10%] left-[10%] w-[35%] h-[35%] bg-gray-400 rounded-full" />
-                 <div className="absolute top-[10%] right-[10%] w-[35%] h-[35%] bg-gray-400 rounded-full" />
-                 <div className="absolute top-[20%] left-[10%] w-[80%] h-[75%] bg-gray-300 rounded-full">
-                   <div className="absolute top-[30%] left-[25%] w-[15%] h-[20%] bg-black rounded-full" />
-                   <div className="absolute top-[30%] right-[25%] w-[15%] h-[20%] bg-black rounded-full" />
-                   <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-[12%] h-[12%] bg-pink-400 rounded-full" />
-                 </div>
+            ) : theme === 'plasma' ? (
+              <div className="relative w-[90%] h-[90%] drop-shadow-[0_0_12px_rgba(217,70,239,0.9)] animate-pulse">
+                <div className="absolute inset-0 bg-fuchsia-600 rounded-full animate-ping opacity-30" />
+                <div className="absolute inset-[10%] bg-gradient-to-tr from-fuchsia-600 to-purple-500 rounded-full shadow-[inset_0_0_15px_rgba(255,255,255,0.6)]" />
+                <div className="absolute inset-[30%] bg-white rounded-full blur-[2px]" />
+                <div className="absolute inset-[40%] bg-fuchsia-100 rounded-full" />
               </div>
             ) : (
-              <div className="w-[50%] h-[50%] bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
+              <div className="relative w-[75%] h-[75%] drop-shadow-[0_0_10px_rgba(56,189,248,1)]">
+                <div className="absolute inset-0 bg-sky-400 rotate-45 rounded-sm border-[3px] border-white shadow-[inset_0_0_10px_rgba(255,255,255,0.9)]" />
+                <div className="absolute inset-[30%] bg-white rotate-45 rounded-sm" />
+              </div>
             )}
           </div>
         </motion.div>
@@ -407,16 +423,16 @@ export default function SnakeGame({
             const hue = 140 + (progress * 40); // 140 (green) to 180 (cyan)
             segmentColor = `hsl(${hue}, 80%, 50%)`;
             glowColor = `rgba(34, 211, 238, ${0.8 - progress * 0.5})`; // Fading glow
-          } else if (theme === 'classic') {
-            // Dark green to light green
-            const lightness = 30 + (progress * 30); // 30% to 60%
-            segmentColor = `hsl(120, 70%, ${lightness}%)`;
-            glowColor = `rgba(34, 197, 94, ${0.5 - progress * 0.3})`;
+          } else if (theme === 'plasma') {
+            // Purple to pink gradient
+            const hue = 290 + (progress * 40); // 290 (purple) to 330 (pink)
+            segmentColor = `hsl(${hue}, 90%, 60%)`;
+            glowColor = `rgba(217, 70, 239, ${0.9 - progress * 0.4})`;
           } else {
-            // Minimal: grayscale
-            const lightness = 60 - (progress * 30); // 60% to 30%
-            segmentColor = `hsl(0, 0%, ${lightness}%)`;
-            glowColor = `rgba(255, 255, 255, ${0.3 - progress * 0.2})`;
+            // Normal: High contrast amber/yellow
+            const hue = 45 - (progress * 25); // 45 (yellow) to 20 (orange)
+            segmentColor = `hsl(${hue}, 100%, 55%)`;
+            glowColor = `rgba(250, 204, 21, ${0.7 - progress * 0.3})`;
           }
 
           // Scale down slightly towards the tail
@@ -467,19 +483,21 @@ export default function SnakeGame({
                   className="w-full h-full rounded-t-full rounded-b-sm relative"
                   style={{ 
                     backgroundColor: segmentColor,
-                    boxShadow: `0 0 15px ${glowColor}, inset 0 0 10px rgba(0,0,0,0.3)`,
+                    boxShadow: theme === 'normal' 
+                      ? `0 0 20px ${glowColor}, inset 0 0 15px rgba(255,255,255,0.6), 0 0 0 2px rgba(255,255,255,0.2)` 
+                      : `0 0 15px ${glowColor}, inset 0 0 10px rgba(0,0,0,0.3)`,
                     transform: `rotate(${headRotation}deg)` 
                   }}
                 >
                   {/* Eyes */}
-                  <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  <div className={`absolute top-[20%] left-[20%] w-[25%] h-[25%] ${theme === 'normal' ? 'bg-white' : 'bg-black'} rounded-full shadow-inner`}>
+                    <div className={`w-[40%] h-[40%] ${theme === 'normal' ? 'bg-sky-500' : 'bg-white'} rounded-full ml-[15%] mt-[15%]`} />
                   </div>
-                  <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  <div className={`absolute top-[20%] right-[20%] w-[25%] h-[25%] ${theme === 'normal' ? 'bg-white' : 'bg-black'} rounded-full shadow-inner`}>
+                    <div className={`w-[40%] h-[40%] ${theme === 'normal' ? 'bg-sky-500' : 'bg-white'} rounded-full ml-[15%] mt-[15%]`} />
                   </div>
                   {/* Forked Tongue */}
-                  {theme !== 'minimal' && (
+                  {theme !== 'normal' && (
                     <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
                       <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
                       <div className="absolute -top-[20%] right-0 w-[80%] h-[40%] bg-red-500 -rotate-45 origin-bottom-left" />
@@ -491,7 +509,9 @@ export default function SnakeGame({
                   className="w-[60%] h-[60%] rounded-full"
                   style={{ 
                     backgroundColor: segmentColor,
-                    boxShadow: `0 0 8px ${glowColor}, inset 0 0 5px rgba(0,0,0,0.5)`
+                    boxShadow: theme === 'normal'
+                      ? `0 0 10px ${glowColor}, inset 0 0 8px rgba(255,255,255,0.5), 0 0 0 1px rgba(255,255,255,0.2)`
+                      : `0 0 8px ${glowColor}, inset 0 0 5px rgba(0,0,0,0.5)`
                   }} 
                 />
               ) : (
@@ -499,7 +519,9 @@ export default function SnakeGame({
                   className="w-[90%] h-[90%] rounded-lg"
                   style={{ 
                     backgroundColor: segmentColor,
-                    boxShadow: `0 0 10px ${glowColor}, inset 0 0 8px rgba(0,0,0,0.3)`
+                    boxShadow: theme === 'normal'
+                      ? `0 0 12px ${glowColor}, inset 0 0 10px rgba(255,255,255,0.5), 0 0 0 1px rgba(255,255,255,0.2)`
+                      : `0 0 10px ${glowColor}, inset 0 0 8px rgba(0,0,0,0.3)`
                   }} 
                 />
               )}

@@ -12,25 +12,31 @@ interface LeaderboardEntry {
   timestamp: any;
 }
 
-export default function Leaderboard() {
+interface LeaderboardProps {
+  provider: 'google' | 'facebook' | 'guest';
+}
+
+export default function Leaderboard({ provider }: LeaderboardProps) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const path = 'leaderboard';
-    const q = query(
-      collection(db, path),
-      orderBy('score', 'desc'),
-      limit(50)
-    );
+    const pathNew = `leaderboard_${provider}`;
+    const pathOld = 'leaderboard';
+    
+    const qNew = query(collection(db, pathNew), orderBy('score', 'desc'), limit(50));
+    const qOld = query(collection(db, pathOld), orderBy('score', 'desc'), limit(50));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allScores = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as LeaderboardEntry[];
+    let newScores: LeaderboardEntry[] = [];
+    let oldScores: LeaderboardEntry[] = [];
+    let isNewLoaded = false;
+    let isOldLoaded = false;
+    
+    const updateScores = () => {
+      if (!isNewLoaded || !isOldLoaded) return;
       
-      // Filter to only keep the highest score per user (in case of old history)
+      const allScores = [...newScores, ...oldScores].sort((a, b) => b.score - a.score);
+      
       const uniqueScores: LeaderboardEntry[] = [];
       const seenUsers = new Set();
       
@@ -44,16 +50,35 @@ export default function Leaderboard() {
       
       setScores(uniqueScores);
       setLoading(false);
+    };
+
+    const unsubNew = onSnapshot(qNew, (snapshot) => {
+      newScores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LeaderboardEntry[];
+      isNewLoaded = true;
+      updateScores();
     }, (error: any) => {
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.LIST, path);
-      }
-      console.error("Error fetching leaderboard:", error);
-      setLoading(false);
+      if (error.code === 'permission-denied') handleFirestoreError(error, OperationType.LIST, pathNew);
+      console.error("Error fetching new leaderboard:", error);
+      isNewLoaded = true;
+      updateScores();
     });
 
-    return () => unsubscribe();
-  }, []);
+    const unsubOld = onSnapshot(qOld, (snapshot) => {
+      oldScores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as LeaderboardEntry[];
+      isOldLoaded = true;
+      updateScores();
+    }, (error: any) => {
+      if (error.code === 'permission-denied') handleFirestoreError(error, OperationType.LIST, pathOld);
+      console.error("Error fetching old leaderboard:", error);
+      isOldLoaded = true;
+      updateScores();
+    });
+
+    return () => {
+      unsubNew();
+      unsubOld();
+    };
+  }, [provider]);
 
   return (
     <div className="w-full max-w-md bg-black/40 border border-cyan-900/50 rounded-xl p-6 backdrop-blur-sm">

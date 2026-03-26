@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, Settings, Volume2, Grid, Zap, Palette } from 'lucide-react';
+import { X, Settings, Palette } from 'lucide-react';
 
 interface GameSettings {
   gridSize: number;
   speed: number;
-  theme: 'cyber' | 'classic' | 'minimal';
+  theme: 'cyber' | 'plasma' | 'normal';
 }
 
 interface SettingsModalProps {
@@ -28,85 +28,34 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
 
   return (
     <div className="bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] w-full max-w-sm animate-in zoom-in duration-300">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Settings className="text-cyan-400 w-5 h-5" />
-          <h2 className="text-xl font-display font-bold text-white tracking-widest">SETTINGS</h2>
-        </div>
+      <div className="flex items-center justify-end mb-6">
         <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
           <X size={24} />
         </button>
       </div>
 
       <div className="space-y-6">
-        {/* Difficulty: Speed */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-            <Zap size={14} />
-            <span>Speed / Difficulty</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Slow', value: 200 },
-              { label: 'Normal', value: 150 },
-              { label: 'Fast', value: 80 },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => handleSpeedChange(opt.value)}
-                className={`py-2 text-[10px] font-bold rounded-lg border transition-all ${
-                  settings.speed === opt.value
-                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                    : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Grid Size */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-            <Grid size={14} />
-            <span>Grid Size</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Small', value: 10 },
-              { label: 'Medium', value: 15 },
-              { label: 'Large', value: 20 },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => handleGridSizeChange(opt.value)}
-                className={`py-2 text-[10px] font-bold rounded-lg border transition-all ${
-                  settings.gridSize === opt.value
-                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                    : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Theme */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider">
+          <div 
+            className="flex items-center justify-center gap-2 text-cyan-300 text-xs font-bold uppercase tracking-wider"
+            style={{ textAlign: 'center', fontFamily: 'Times New Roman' }}
+          >
             <Palette size={14} />
-            <span>Theme</span>
+            <span>THEMES</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {['cyber', 'classic', 'minimal'].map((t) => (
+            {['cyber', 'plasma', 'normal'].map((t) => (
               <button
                 key={t}
                 onClick={() => handleThemeChange(t as GameSettings['theme'])}
                 className={`py-2 text-[10px] font-bold rounded-lg border capitalize transition-all ${
                   settings.theme === t
-                    ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
+                    ? t === 'cyber'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                      : t === 'plasma'
+                      ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
+                      : 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
                     : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
                 }`}
               >
