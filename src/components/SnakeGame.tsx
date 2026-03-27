@@ -43,6 +43,7 @@ export default function SnakeGame({
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
   const [obstacles, setObstacles] = useState<Point[]>([]);
   const [gameOver, setGameOver] = useState<boolean>(false);
+  const [showMainMenuButton, setShowMainMenuButton] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [justAte, setJustAte] = useState<boolean>(false);
@@ -51,8 +52,8 @@ export default function SnakeGame({
     return lastRevive !== new Date().toDateString();
   });
 
-  const directionRef = useRef(direction);
-  directionRef.current = direction;
+  const inputQueueRef = useRef<Point[]>([]);
+  const lastExecutedDirectionRef = useRef<Point>(INITIAL_DIRECTION);
   const touchStart = useRef<Point | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -79,15 +80,27 @@ export default function SnakeGame({
     // Minimum swipe distance to trigger move
     if (Math.max(absDx, absDy) > 30) {
       if (isPaused) return;
-      const { x: curX, y: curY } = directionRef.current;
+      
+      const queue = inputQueueRef.current;
+      const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
+      let newDir: Point | null = null;
+
       if (absDx > absDy) {
         // Horizontal swipe
-        if (dx > 0 && curX !== -1) setDirection({ x: 1, y: 0 });
-        else if (dx < 0 && curX !== 1) setDirection({ x: -1, y: 0 });
+        if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
+        else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
       } else {
         // Vertical swipe
-        if (dy > 0 && curY !== -1) setDirection({ x: 0, y: 1 });
-        else if (dy < 0 && curY !== 1) setDirection({ x: 0, y: -1 });
+        if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
+        else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
+      }
+
+      if (newDir) {
+        if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+          if (queue.length < 3) {
+            queue.push(newDir);
+          }
+        }
       }
     } else {
       // Tap detected - check if it's in the middle area
@@ -189,6 +202,8 @@ export default function SnakeGame({
     ];
     setSnake(initialSnake);
     setDirection(INITIAL_DIRECTION);
+    inputQueueRef.current = [];
+    lastExecutedDirectionRef.current = INITIAL_DIRECTION;
     setScore(0);
     onScoreChange(0);
     setGameOver(false);
@@ -212,6 +227,8 @@ export default function SnakeGame({
     ];
     setSnake(initialSnake);
     setDirection(INITIAL_DIRECTION);
+    inputQueueRef.current = [];
+    lastExecutedDirectionRef.current = INITIAL_DIRECTION;
     
     // Keep score, just reset position and obstacles
     setGameOver(false);
@@ -226,34 +243,53 @@ export default function SnakeGame({
 
   useEffect(() => {
     onGameOverStateChange?.(gameOver);
+    if (gameOver) {
+      const timer = setTimeout(() => {
+        setShowMainMenuButton(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowMainMenuButton(false);
+    }
   }, [gameOver, onGameOverStateChange]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameOver) return;
 
-      const { x, y } = directionRef.current;
+      const queue = inputQueueRef.current;
+      const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
+      let newDir: Point | null = null;
+
       switch (e.key) {
         case 'ArrowUp':
         case 'w':
-          if (y !== 1) setDirection({ x: 0, y: -1 });
+          if (lastDir.y !== 1) newDir = { x: 0, y: -1 };
           break;
         case 'ArrowDown':
         case 's':
-          if (y !== -1) setDirection({ x: 0, y: 1 });
+          if (lastDir.y !== -1) newDir = { x: 0, y: 1 };
           break;
         case 'ArrowLeft':
         case 'a':
-          if (x !== 1) setDirection({ x: -1, y: 0 });
+          if (lastDir.x !== 1) newDir = { x: -1, y: 0 };
           break;
         case 'ArrowRight':
         case 'd':
-          if (x !== -1) setDirection({ x: 1, y: 0 });
+          if (lastDir.x !== -1) newDir = { x: 1, y: 0 };
           break;
         case ' ':
         case 'p':
           setIsPaused((prev) => !prev);
           break;
+      }
+
+      if (newDir) {
+        if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+          if (queue.length < 3) {
+            queue.push(newDir);
+          }
+        }
       }
     };
 
@@ -265,10 +301,17 @@ export default function SnakeGame({
     if (gameOver || isPaused) return;
 
     const moveSnake = () => {
+      let nextDir = lastExecutedDirectionRef.current;
+      if (inputQueueRef.current.length > 0) {
+        nextDir = inputQueueRef.current.shift()!;
+        lastExecutedDirectionRef.current = nextDir;
+        setDirection(nextDir);
+      }
+
       const head = snake[0];
       const newHead = {
-        x: head.x + directionRef.current.x,
-        y: head.y + directionRef.current.y,
+        x: head.x + nextDir.x,
+        y: head.y + nextDir.y,
       };
 
       // Wrap around walls
@@ -485,10 +528,10 @@ export default function SnakeGame({
               else if (dy === 1 || dy < -1) headRotation = 180;
               else if (dy === -1 || dy > 1) headRotation = 0;
             } else {
-              if (directionRef.current.x === 1) headRotation = 90;
-              else if (directionRef.current.x === -1) headRotation = -90;
-              else if (directionRef.current.y === 1) headRotation = 180;
-              else if (directionRef.current.y === -1) headRotation = 0;
+              if (direction.x === 1) headRotation = 90;
+              else if (direction.x === -1) headRotation = -90;
+              else if (direction.y === 1) headRotation = 180;
+              else if (direction.y === -1) headRotation = 0;
             }
           }
 
@@ -568,7 +611,7 @@ export default function SnakeGame({
 
       {/* Center Pause/Play Button Indicator */}
       <div 
-        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none transition-all duration-300 ${isPaused ? 'opacity-60 scale-110' : 'opacity-10 scale-100'}`}
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none transition-all duration-300 ${isPaused ? 'opacity-60 scale-110' : 'opacity-0 scale-100'}`}
         style={{ width: '15%', height: '15%' }}
       >
         {isPaused ? (
@@ -648,8 +691,10 @@ export default function SnakeGame({
               >
                 LEADERBOARD
               </motion.button>
-              {onReturnToMenu && (
+              {onReturnToMenu && showMainMenuButton && (
                 <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={onReturnToMenu}
