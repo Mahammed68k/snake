@@ -20,10 +20,7 @@ interface GameSettings {
 // Error Boundary Component
 export default function App() {
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(() => {
-    const saved = localStorage.getItem('snakeHighScore');
-    return saved ? parseInt(saved, 10) : 0;
-  });
+  const [highScore, setHighScore] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -85,15 +82,30 @@ export default function App() {
   useEffect(() => {
     if (score > highScore) {
       setHighScore(score);
-      localStorage.setItem('snakeHighScore', score.toString());
     }
   }, [score, highScore]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         setNewName(currentUser.displayName || '');
+        
+        // Fetch high score from Firestore based on provider
+        const provider = getUserProvider(currentUser);
+        const collectionName = `leaderboard_${provider}`;
+        const scoreRef = doc(db, collectionName, currentUser.uid);
+        try {
+          const scoreDoc = await getDoc(scoreRef);
+          if (scoreDoc.exists()) {
+            const dbScore = scoreDoc.data().score;
+            setHighScore(dbScore);
+          } else {
+            setHighScore(0);
+          }
+        } catch (error) {
+          console.error("Error fetching high score:", error);
+        }
       }
       setLoading(false);
     });
