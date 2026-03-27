@@ -12,6 +12,7 @@ interface Point {
 interface SnakeGameProps {
   onScoreChange: (score: number) => void;
   onGameOver?: (score: number) => void;
+  onGameOverStateChange?: (isGameOver: boolean) => void;
   onShowLeaderboard?: () => void;
   onReturnToMenu?: () => void;
   highScore: number;
@@ -24,6 +25,7 @@ interface SnakeGameProps {
 export default function SnakeGame({ 
   onScoreChange, 
   onGameOver, 
+  onGameOverStateChange,
   onShowLeaderboard, 
   onReturnToMenu,
   highScore, 
@@ -44,6 +46,10 @@ export default function SnakeGame({
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [justAte, setJustAte] = useState<boolean>(false);
+  const [canRevive, setCanRevive] = useState<boolean>(() => {
+    const lastRevive = localStorage.getItem('lastReviveDate');
+    return lastRevive !== new Date().toDateString();
+  });
 
   const directionRef = useRef(direction);
   directionRef.current = direction;
@@ -195,6 +201,33 @@ export default function SnakeGame({
     setFood(generateFood(initialSnake, newObstacles));
   };
 
+  const continueGame = () => {
+    localStorage.setItem('lastReviveDate', new Date().toDateString());
+    setCanRevive(false);
+    
+    const initialSnake = [
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
+      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
+    ];
+    setSnake(initialSnake);
+    setDirection(INITIAL_DIRECTION);
+    
+    // Keep score, just reset position and obstacles
+    setGameOver(false);
+    setIsPaused(true); // Pause to let player get ready
+    
+    const obstacleCount = Math.floor((gridSize * gridSize) / 50);
+    const newObstacles = generateObstacles(initialSnake, obstacleCount);
+    setObstacles(newObstacles);
+    
+    setFood(generateFood(initialSnake, newObstacles));
+  };
+
+  useEffect(() => {
+    onGameOverStateChange?.(gameOver);
+  }, [gameOver, onGameOverStateChange]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameOver) return;
@@ -260,6 +293,7 @@ export default function SnakeGame({
           (obs) => obs.x === newHead.x && obs.y === newHead.y
         )
       ) {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
         setGameOver(true);
         onGameOver?.(score);
         return;
@@ -269,6 +303,7 @@ export default function SnakeGame({
 
       // Check food collision
       if (newHead.x === food.x && newHead.y === food.y) {
+        if (navigator.vibrate) navigator.vibrate(50);
         const newScore = score + 10;
         setScore(newScore);
         onScoreChange(newScore);
@@ -299,8 +334,9 @@ export default function SnakeGame({
           theme === 'cyber' ? 'border-cyan-500' : theme === 'plasma' ? 'border-fuchsia-500' : 'border-zinc-700'
         }`}
         style={{
-          width: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
-          height: isFullScreen ? '100vmin' : 'min(98vw, 98vh)',
+          width: isFullScreen ? '100vmin' : '100%',
+          maxWidth: isFullScreen ? 'none' : 'min(800px, calc(100vh - 16px))',
+          aspectRatio: '1 / 1',
         }}
       >
         {/* Grid Background */}
@@ -551,10 +587,10 @@ export default function SnakeGame({
             className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-20"
           >
             <motion.h2 
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="text-4xl font-bold text-red-500 mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]"
+              initial={{ scale: 0.5, opacity: 0, y: -20 }}
+              animate={{ scale: [1.2, 1], opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 10 }}
+              className="text-5xl md:text-6xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)] tracking-widest text-center whitespace-nowrap"
             >
               GAME OVER
             </motion.h2>
@@ -573,25 +609,54 @@ export default function SnakeGame({
               transition={{ delay: 0.4 }}
               className="flex flex-col gap-3 w-full max-w-[250px]"
             >
-              <button
+              {canRevive && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{ 
+                    boxShadow: ["0 0 15px rgba(34,197,94,0.6)", "0 0 25px rgba(34,197,94,0.9)", "0 0 15px rgba(34,197,94,0.6)"] 
+                  }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  onClick={continueGame}
+                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-colors flex flex-col items-center justify-center leading-tight"
+                >
+                  <span>CONTINUE</span>
+                  <span className="text-[10px] uppercase tracking-widest opacity-80 font-normal">1 Chance Today</span>
+                </motion.button>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{ 
+                  boxShadow: ["0 0 15px rgba(6,182,212,0.6)", "0 0 25px rgba(6,182,212,0.9)", "0 0 15px rgba(6,182,212,0.6)"] 
+                }}
+                transition={{ repeat: Infinity, duration: 2, delay: 0.2 }}
                 onClick={resetGame}
-                className="w-full px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] hover:shadow-[0_0_25px_rgba(6,182,212,0.8)]"
+                className="w-full px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-full transition-colors"
               >
                 PLAY AGAIN
-              </button>
-              <button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                animate={{ 
+                  boxShadow: ["0 0 0px rgba(217,70,239,0)", "0 0 15px rgba(217,70,239,0.4)", "0 0 0px rgba(217,70,239,0)"] 
+                }}
+                transition={{ repeat: Infinity, duration: 2, delay: 0.4 }}
                 onClick={onShowLeaderboard}
-                className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-all"
+                className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-colors"
               >
                 LEADERBOARD
-              </button>
+              </motion.button>
               {onReturnToMenu && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={onReturnToMenu}
-                  className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold rounded-full transition-all"
+                  className="w-full px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 font-bold rounded-full transition-colors"
                 >
                   MAIN MENU
-                </button>
+                </motion.button>
               )}
             </motion.div>
           </motion.div>

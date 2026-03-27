@@ -26,7 +26,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
         transition={{ delay: 0.2, type: 'spring', stiffness: 200, damping: 15 }}
         className="text-4xl md:text-6xl lg:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.8)] tracking-widest mb-4"
       >
-        SNAKE
+        MK
       </motion.h1>
       <motion.p
         initial={{ y: 20, opacity: 0 }}
@@ -34,7 +34,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
         transition={{ delay: 0.8, duration: 0.5 }}
         className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80"
       >
-        CYBER EDITION
+        MK EDITION
       </motion.p>
       
       <motion.div 

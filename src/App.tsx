@@ -74,6 +74,7 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('snakeSettings', JSON.stringify(settings));
@@ -337,7 +338,7 @@ export default function App() {
             )}
 
             {/* Score Display */}
-            <div className="flex gap-2 md:gap-3 items-stretch">
+            <div className={`flex gap-2 md:gap-3 items-stretch ${isGameOver ? 'hidden' : ''}`}>
               {gameState === 'playing' && (
                 <>
                   <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
@@ -390,7 +391,7 @@ export default function App() {
       )}
 
       {/* Game Area - Full Screen Centered */}
-      <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12'}`}>
+      <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12 landscape:p-2'}`}>
         <AnimatePresence mode="wait">
           {gameState === 'intro' ? (
             <IntroScreen key="intro" onComplete={() => setGameState('menu')} />
@@ -405,6 +406,7 @@ export default function App() {
               <SnakeGame 
                 onScoreChange={setScore} 
                 onGameOver={handleGameOver} 
+                onGameOverStateChange={setIsGameOver}
                 highScore={highScore} 
                 onShowLeaderboard={() => setShowLeaderboard(true)}
                 onReturnToMenu={() => setGameState('menu')}
