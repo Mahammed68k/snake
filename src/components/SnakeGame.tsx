@@ -373,39 +373,52 @@ export default function SnakeGame({
       onTouchEnd={handleTouchEnd}
     >
       <div
-        className={`relative bg-black/40 border-2 rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] overflow-hidden transition-all duration-500 ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
-          theme === 'cyber' ? 'border-cyan-500' : theme === 'plasma' ? 'border-fuchsia-500' : 'border-zinc-700'
+        className={`relative bg-black/60 border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
+          theme === 'cyber' ? 'shadow-[0_0_40px_rgba(6,182,212,0.3),inset_0_0_30px_rgba(6,182,212,0.1)] border-cyan-500/30' : 
+          theme === 'plasma' ? 'shadow-[0_0_40px_rgba(217,70,239,0.3),inset_0_0_30px_rgba(217,70,239,0.1)] border-fuchsia-500/30' : 
+          'shadow-[0_0_40px_rgba(255,255,255,0.1),inset_0_0_30px_rgba(255,255,255,0.05)] border-zinc-600/50'
         }`}
         style={{
           width: isFullScreen ? '100vmin' : '100%',
           maxWidth: isFullScreen ? 'none' : 'min(800px, calc(100vh - 16px))',
           aspectRatio: '1 / 1',
+          backgroundImage: theme === 'cyber' 
+            ? 'radial-gradient(circle at 50% 50%, rgba(6,182,212,0.15) 0%, rgba(0,0,0,0.8) 100%)' 
+            : theme === 'plasma'
+            ? 'radial-gradient(circle at 50% 50%, rgba(217,70,239,0.15) 0%, rgba(0,0,0,0.8) 100%)'
+            : 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.8) 100%)'
         }}
       >
         {/* Grid Background */}
         <div 
-          className="absolute inset-0 grid"
+          className="absolute inset-0 grid pointer-events-none"
           style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
         >
           {Array.from({ length: gridSize * gridSize }).map((_, index) => (
             <div key={index} className={`w-full h-full ${
-              theme === 'cyber' ? 'border border-cyan-900/10' : 
-              theme === 'plasma' ? 'border border-fuchsia-900/10' : 
-              'border border-white/5'
+              theme === 'cyber' ? 'border border-cyan-500/[0.08] shadow-[inset_0_0_10px_rgba(6,182,212,0.02)]' : 
+              theme === 'plasma' ? 'border border-fuchsia-500/[0.08] shadow-[inset_0_0_10px_rgba(217,70,239,0.02)]' : 
+              'border border-white/[0.04] shadow-[inset_0_0_10px_rgba(255,255,255,0.01)]'
             }`} />
           ))}
         </div>
+        
+        {/* Overlay Scanlines */}
+        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100%_4px] opacity-30 mix-blend-overlay" />
 
         {/* Obstacles */}
         {obstacles.map((obs, index) => (
-          <div
+          <motion.div
             key={`obs-${index}-${obs.x}-${obs.y}`}
-            className={`absolute flex items-center justify-center ${
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: index * 0.01, ease: "easeOut" }}
+            className={`absolute flex items-center justify-center rounded-sm overflow-hidden backdrop-blur-sm ${
               theme === 'cyber' 
-                ? 'bg-red-900/40 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' 
+                ? 'bg-red-950/60 border border-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.6),inset_0_0_15px_rgba(239,68,68,0.5)]' 
                 : theme === 'plasma'
-                ? 'bg-purple-900/40 border border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]'
-                : 'bg-zinc-900 border border-zinc-700 shadow-[0_0_15px_rgba(0,0,0,0.8)]'
+                ? 'bg-purple-950/60 border border-purple-500/80 shadow-[0_0_15px_rgba(168,85,247,0.6),inset_0_0_15px_rgba(168,85,247,0.5)]'
+                : 'bg-zinc-800/80 border border-zinc-400/50 shadow-[0_0_15px_rgba(0,0,0,0.8),inset_0_0_15px_rgba(255,255,255,0.1)]'
             }`}
             style={{
               width: `${cellSize}%`,
@@ -414,16 +427,18 @@ export default function SnakeGame({
               top: `${obs.y * cellSize}%`,
             }}
           >
-            {theme === 'cyber' && (
-              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(239,68,68,0.2)_2px,rgba(239,68,68,0.2)_4px)]" />
-            )}
-            {theme === 'plasma' && (
-              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(168,85,247,0.2)_2px,rgba(168,85,247,0.2)_4px)]" />
-            )}
-            {theme === 'normal' && (
-              <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,0.05)_2px,rgba(255,255,255,0.05)_4px)]" />
-            )}
-          </div>
+            {/* Inner texture */}
+            <div className={`w-full h-full opacity-60 ${
+              theme === 'cyber' ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(239,68,68,0.3)_2px,rgba(239,68,68,0.3)_4px)]' :
+              theme === 'plasma' ? 'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(168,85,247,0.3)_2px,rgba(168,85,247,0.3)_4px)]' :
+              'bg-[repeating-linear-gradient(45deg,transparent,transparent_2px,rgba(255,255,255,0.1)_2px,rgba(255,255,255,0.1)_4px)]'
+            }`} />
+            {/* 3D Highlights */}
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-white/40" />
+            <div className="absolute top-0 left-0 w-[1px] h-full bg-white/30" />
+            <div className="absolute bottom-0 right-0 w-full h-[1px] bg-black/60" />
+            <div className="absolute bottom-0 right-0 w-[1px] h-full bg-black/60" />
+          </motion.div>
         ))}
 
         {/* Food */}
@@ -440,7 +455,7 @@ export default function SnakeGame({
             rotate: { repeat: Infinity, duration: 0.5, ease: "easeInOut" },
             opacity: { duration: 0.3 }
           }}
-          className="absolute"
+          className="absolute flex items-center justify-center"
           style={{
             width: `${cellSize}%`,
             height: `${cellSize}%`,
@@ -448,7 +463,18 @@ export default function SnakeGame({
             top: `${food.y * cellSize}%`,
           }}
         >
-          <div className={`w-full h-full flex items-center justify-center relative ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
+          {/* Food Glow Aura */}
+          <motion.div 
+            className={`absolute w-[180%] h-[180%] rounded-full opacity-40 blur-md ${
+              theme === 'cyber' ? 'bg-orange-500' : 
+              theme === 'plasma' ? 'bg-fuchsia-500' : 
+              'bg-sky-400'
+            }`}
+            animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+          />
+
+          <div className={`w-full h-full flex items-center justify-center relative z-10 ${theme === 'cyber' ? 'animate-bounce' : ''}`}>
             {theme === 'cyber' ? (
               <div className="relative w-[90%] h-[90%] drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]">
                 {/* Tail */}

@@ -220,7 +220,7 @@ export default function App() {
       {/* Floating Header / HUD - Hidden in Full Screen */}
       {!isFullScreen && gameState !== 'intro' && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
-          <div className="flex flex-col pointer-events-auto">
+          <div className="flex flex-col pointer-events-auto text-center">
             {gameState === 'playing' && (
               <>
                 <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
