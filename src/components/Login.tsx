@@ -70,17 +70,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 font-sans">
-      {/* Background Grid Pattern */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: `linear-gradient(to right, #d946ef 1px, transparent 1px), linear-gradient(to bottom, #06b6d4 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-          maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)'
-        }}
-      />
-
       <div className="z-10 bg-black/50 border border-cyan-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(6,182,212,0.2)] backdrop-blur-md w-full max-w-md flex flex-col items-center">
         <h1 className="text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] tracking-wider mb-2">
           SNAKE

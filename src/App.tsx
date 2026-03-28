@@ -211,17 +211,6 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen bg-[#050505] relative overflow-hidden flex items-center justify-center font-sans p-0 m-0">
-      {/* Background Grid Pattern */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-20 z-0"
-        style={{
-          backgroundImage: `linear-gradient(to right, #d946ef 1px, transparent 1px), linear-gradient(to bottom, #06b6d4 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-          maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 80%)'
-        }}
-      />
-
       {/* Floating Header / HUD - Hidden in Full Screen */}
       {!isFullScreen && gameState !== 'intro' && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">

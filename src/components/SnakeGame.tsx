@@ -379,8 +379,10 @@ export default function SnakeGame({
           'shadow-[0_0_40px_rgba(255,255,255,0.2),inset_0_0_30px_rgba(255,255,255,0.1)] border-zinc-400/80'
         }`}
         style={{
-          width: isFullScreen ? '100vmin' : '100%',
-          maxWidth: isFullScreen ? 'none' : 'min(800px, calc(100vh - 16px))',
+          width: '100vmin',
+          height: '100vmin',
+          maxWidth: '100%',
+          maxHeight: '100%',
           aspectRatio: '1 / 1',
           backgroundImage: theme === 'cyber' 
             ? 'radial-gradient(circle at 50% 50%, rgba(6,182,212,0.15) 0%, rgba(0,0,0,0.8) 100%)' 
