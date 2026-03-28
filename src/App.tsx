@@ -87,28 +87,33 @@ export default function App() {
   }, [score, highScore]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setLoading(false);
+      
       if (currentUser) {
         setNewName(currentUser.displayName || '');
         
-        // Fetch high score from Firestore based on provider
-        const provider = getUserProvider(currentUser);
-        const collectionName = `leaderboard_${provider}`;
-        const scoreRef = doc(db, collectionName, currentUser.uid);
-        try {
-          const scoreDoc = await getDoc(scoreRef);
-          if (scoreDoc.exists()) {
-            const dbScore = scoreDoc.data().score;
-            setHighScore(dbScore);
-          } else {
-            setHighScore(0);
+        // Fetch high score from Firestore based on provider asynchronously
+        const fetchHighScore = async () => {
+          const provider = getUserProvider(currentUser);
+          const collectionName = `leaderboard_${provider}`;
+          const scoreRef = doc(db, collectionName, currentUser.uid);
+          try {
+            const scoreDoc = await getDoc(scoreRef);
+            if (scoreDoc.exists()) {
+              const dbScore = scoreDoc.data().score;
+              setHighScore(dbScore);
+            } else {
+              setHighScore(0);
+            }
+          } catch (error) {
+            console.error("Error fetching high score:", error);
           }
-        } catch (error) {
-          console.error("Error fetching high score:", error);
-        }
+        };
+        
+        fetchHighScore();
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, []);

@@ -373,10 +373,10 @@ export default function SnakeGame({
       onTouchEnd={handleTouchEnd}
     >
       <div
-        className={`relative bg-black/60 border border-white/10 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
-          theme === 'cyber' ? 'shadow-[0_0_40px_rgba(6,182,212,0.3),inset_0_0_30px_rgba(6,182,212,0.1)] border-cyan-500/30' : 
-          theme === 'plasma' ? 'shadow-[0_0_40px_rgba(217,70,239,0.3),inset_0_0_30px_rgba(217,70,239,0.1)] border-fuchsia-500/30' : 
-          'shadow-[0_0_40px_rgba(255,255,255,0.1),inset_0_0_30px_rgba(255,255,255,0.05)] border-zinc-600/50'
+        className={`relative bg-black/60 border-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
+          theme === 'cyber' ? 'shadow-[0_0_40px_rgba(6,182,212,0.5),inset_0_0_30px_rgba(6,182,212,0.2)] border-cyan-400/80' : 
+          theme === 'plasma' ? 'shadow-[0_0_40px_rgba(217,70,239,0.5),inset_0_0_30px_rgba(217,70,239,0.2)] border-fuchsia-400/80' : 
+          'shadow-[0_0_40px_rgba(255,255,255,0.2),inset_0_0_30px_rgba(255,255,255,0.1)] border-zinc-400/80'
         }`}
         style={{
           width: isFullScreen ? '100vmin' : '100%',
@@ -389,23 +389,6 @@ export default function SnakeGame({
             : 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.8) 100%)'
         }}
       >
-        {/* Grid Background */}
-        <div 
-          className="absolute inset-0 grid pointer-events-none"
-          style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
-        >
-          {Array.from({ length: gridSize * gridSize }).map((_, index) => (
-            <div key={index} className={`w-full h-full ${
-              theme === 'cyber' ? 'border border-cyan-500/[0.08] shadow-[inset_0_0_10px_rgba(6,182,212,0.02)]' : 
-              theme === 'plasma' ? 'border border-fuchsia-500/[0.08] shadow-[inset_0_0_10px_rgba(217,70,239,0.02)]' : 
-              'border border-white/[0.04] shadow-[inset_0_0_10px_rgba(255,255,255,0.01)]'
-            }`} />
-          ))}
-        </div>
-        
-        {/* Overlay Scanlines */}
-        <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100%_4px] opacity-30 mix-blend-overlay" />
-
         {/* Obstacles */}
         {obstacles.map((obs, index) => (
           <motion.div
