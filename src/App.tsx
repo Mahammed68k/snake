@@ -150,6 +150,13 @@ export default function App() {
     setNameError(null);
     const desiredName = newName.trim();
     const provider = getUserProvider(auth.currentUser);
+    
+    if (provider === 'guest' && desiredName.length < 4) {
+      setNameError("Guest name must be at least 4 characters.");
+      setIsUpdating(false);
+      return;
+    }
+
     const collectionName = `leaderboard_${provider}`;
     const path = `${collectionName}/${auth.currentUser.uid}`;
     
@@ -578,6 +585,7 @@ export default function App() {
                   placeholder="Enter your name"
                   className={`w-full bg-white/5 border ${nameError ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-700`}
                   maxLength={20}
+                  minLength={user?.isAnonymous ? 4 : undefined}
                   required
                 />
                 {nameError && (

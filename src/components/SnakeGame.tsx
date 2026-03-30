@@ -69,6 +69,22 @@ export default function SnakeGame({
   const touchStart = useRef<Point | null>(null);
   const swipeHandled = useRef<boolean>(false);
 
+  const handleDirectionClick = (newDir: Point) => {
+    if (gameOver) return;
+    const queue = inputQueueRef.current;
+    const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
+    
+    if (newDir.x !== 0 && lastDir.x === newDir.x * -1) return;
+    if (newDir.y !== 0 && lastDir.y === newDir.y * -1) return;
+    
+    if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+      if (queue.length < 3) {
+        queue.push(newDir);
+      }
+    }
+    setIsPaused(false);
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = {
       x: e.touches[0].clientX,
@@ -777,10 +793,13 @@ export default function SnakeGame({
             </h2>
             <div className="flex flex-col gap-4 text-white/90 mb-8 max-w-xs">
               <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="w-12 h-12 flex items-center justify-center bg-cyan-500/20 rounded-full shrink-0">
-                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↑</div>
+                  <div className="flex gap-1">
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">←</div>
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↓</div>
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">→</div>
+                  </div>
                 </div>
                 <p className="text-sm text-left">Swipe anywhere on the screen to change direction.</p>
               </div>
@@ -806,6 +825,30 @@ export default function SnakeGame({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile D-Pad Controls Overlay */}
+      {isMobile && !gameOver && !showInstructions && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20 opacity-50 hover:opacity-90 transition-opacity pointer-events-auto">
+          <button 
+            className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 0, y: -1 }); }}
+          >↑</button>
+          <div className="flex gap-12">
+            <button 
+              className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: -1, y: 0 }); }}
+            >←</button>
+            <button 
+              className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 1, y: 0 }); }}
+            >→</button>
+          </div>
+          <button 
+            className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
+            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 0, y: 1 }); }}
+          >↓</button>
+        </div>
+      )}
     </div>
   );
 }
