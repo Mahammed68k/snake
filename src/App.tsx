@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
-import { collection, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,6 +72,7 @@ export default function App() {
     };
   });
   const [newName, setNewName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
@@ -94,6 +95,10 @@ export default function App() {
       if (currentUser) {
         setNewName(currentUser.displayName || '');
         
+        if (currentUser.isAnonymous && !currentUser.displayName) {
+          setShowProfileModal(true);
+        }
+        
         // Fetch high score from Firestore based on provider asynchronously
         const fetchHighScore = async () => {
           const provider = getUserProvider(currentUser);
@@ -106,6 +111,15 @@ export default function App() {
               setHighScore(dbScore);
             } else {
               setHighScore(0);
+              // Reserve the name if it's already set (e.g. Google/Facebook)
+              if (currentUser.displayName) {
+                await setDoc(scoreRef, {
+                  userId: currentUser.uid,
+                  displayName: currentUser.displayName,
+                  score: 0,
+                  timestamp: serverTimestamp()
+                });
+              }
             }
           } catch (error) {
             console.error("Error fetching high score:", error);
@@ -133,17 +147,53 @@ export default function App() {
     if (!auth.currentUser || !newName.trim() || isUpdating) return;
 
     setIsUpdating(true);
+    setNameError(null);
+    const desiredName = newName.trim();
     const provider = getUserProvider(auth.currentUser);
     const collectionName = `leaderboard_${provider}`;
     const path = `${collectionName}/${auth.currentUser.uid}`;
+    
     try {
-      await updateProfile(auth.currentUser, { displayName: newName.trim() });
+      // Check if name is already taken across all providers
+      const providers = ['google', 'facebook', 'guest'];
+      let nameTaken = false;
       
-      // Update leaderboard entry if it exists
+      for (const p of providers) {
+        const q = query(collection(db, `leaderboard_${p}`), where('displayName', '==', desiredName));
+        const querySnapshot = await getDocs(q);
+        
+        // Make sure we don't count the current user's own document
+        const otherUsersWithSameName = querySnapshot.docs.filter(doc => doc.id !== auth.currentUser!.uid);
+        
+        if (otherUsersWithSameName.length > 0) {
+          nameTaken = true;
+          break;
+        }
+      }
+      
+      if (nameTaken) {
+        const randomId = Math.floor(1000 + Math.random() * 9000);
+        const suggestedName = `${desiredName}_${randomId}`.substring(0, 20);
+        setNewName(suggestedName);
+        setNameError(`Name is already taken. We suggested: ${suggestedName}`);
+        setIsUpdating(false);
+        return;
+      }
+
+      await updateProfile(auth.currentUser, { displayName: desiredName });
+      
+      // Update leaderboard entry if it exists, otherwise create it to reserve the name
       const scoreRef = doc(db, collectionName, auth.currentUser.uid);
       const scoreDoc = await getDoc(scoreRef);
       if (scoreDoc.exists()) {
-        await setDoc(scoreRef, { displayName: newName.trim() }, { merge: true });
+        await setDoc(scoreRef, { displayName: desiredName }, { merge: true });
+      } else {
+        await setDoc(scoreRef, {
+          userId: auth.currentUser.uid,
+          displayName: desiredName,
+          score: 0,
+          timestamp: serverTimestamp()
+        });
       }
       
       // Update local state
@@ -154,6 +204,7 @@ export default function App() {
         handleFirestoreError(error, OperationType.UPDATE, path);
       }
       console.error("Error updating profile:", error);
+      setNameError(error.message || "Failed to update name.");
     } finally {
       setIsUpdating(false);
     }
@@ -177,9 +228,9 @@ export default function App() {
       const scoreRef = doc(db, collectionName, user.uid);
       const scoreDoc = await getDoc(scoreRef);
       
-      const displayName = user.isAnonymous 
-        ? `Guest_${user.uid.slice(0, 5)}` 
-        : (user.displayName || user.email?.split('@')[0] || 'Anonymous');
+      const displayName = user.displayName || (user.isAnonymous 
+        ? 'Anonymous' 
+        : (user.email?.split('@')[0] || 'Anonymous'));
 
       if (!scoreDoc.exists() || finalScore > scoreDoc.data().score) {
         await setDoc(scoreRef, {
@@ -254,7 +305,7 @@ export default function App() {
                   <div className="px-3 py-2 border-bottom border-white/5 mb-1">
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account</p>
                     <p className="text-xs text-cyan-400 truncate font-mono">
-                      {user.isAnonymous ? `Guest_${user.uid.slice(0, 5)}` : (user.email || 'User')}
+                      {user.displayName || (user.isAnonymous ? 'Anonymous' : (user.email || 'User'))}
                     </p>
                   </div>
 
@@ -269,7 +320,7 @@ export default function App() {
                       <svg className="w-4 h-4 text-gray-500 group-hover:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
-                      User Name
+                      Edit Name
                     </button>
                   )}
 
@@ -499,16 +550,20 @@ export default function App() {
       {showProfileModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)]">
-            <button 
-              onClick={() => setShowProfileModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            {!(user?.isAnonymous && !user?.displayName) && (
+              <button 
+                onClick={() => setShowProfileModal(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
 
-            <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 tracking-wider">USER NAME</h2>
+            <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 tracking-wider">
+              {user?.isAnonymous && !user?.displayName ? 'CHOOSE A NAME' : 'USER NAME'}
+            </h2>
             
             <form onSubmit={handleUpdateName} className="space-y-4">
               <div>
@@ -516,12 +571,18 @@ export default function App() {
                 <input 
                   type="text"
                   value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
+                  onChange={(e) => {
+                    setNewName(e.target.value);
+                    setNameError(null);
+                  }}
                   placeholder="Enter your name"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-700"
+                  className={`w-full bg-white/5 border ${nameError ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-700`}
                   maxLength={20}
                   required
                 />
+                {nameError && (
+                  <p className="text-red-400 text-xs mt-2 ml-1">{nameError}</p>
+                )}
               </div>
 
               <button

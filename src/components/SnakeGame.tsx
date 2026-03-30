@@ -51,59 +51,87 @@ export default function SnakeGame({
     const lastRevive = localStorage.getItem('lastReviveDate');
     return lastRevive !== new Date().toDateString();
   });
+  const [showInstructions, setShowInstructions] = useState<boolean>(() => {
+    const hasSeen = localStorage.getItem('hasSeenSwipeInstructions');
+    const isMobile = window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    return !hasSeen && isMobile;
+  });
+
+  // Pause game initially if showing instructions
+  useEffect(() => {
+    if (showInstructions) {
+      setIsPaused(true);
+    }
+  }, [showInstructions]);
 
   const inputQueueRef = useRef<Point[]>([]);
   const lastExecutedDirectionRef = useRef<Point>(INITIAL_DIRECTION);
   const touchStart = useRef<Point | null>(null);
+  const swipeHandled = useRef<boolean>(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStart.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
     };
+    swipeHandled.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart.current || gameOver) return;
+
+    const touchCurrent = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+    };
+
+    const dx = touchCurrent.x - touchStart.current.x;
+    const dy = touchCurrent.y - touchStart.current.y;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Minimum swipe distance to trigger move (lowered to 20 for more responsiveness)
+    if (Math.max(absDx, absDy) > 20) {
+      swipeHandled.current = true;
+      if (!isPaused) {
+        const queue = inputQueueRef.current;
+        const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
+        let newDir: Point | null = null;
+
+        if (absDx > absDy) {
+          // Horizontal swipe
+          if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
+          else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
+        } else {
+          // Vertical swipe
+          if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
+          else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
+        }
+
+        if (newDir) {
+          if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+            if (queue.length < 3) {
+              queue.push(newDir);
+            }
+          }
+        }
+      }
+      
+      // Update touch start to current position to allow continuous swiping (e.g. L-shapes)
+      touchStart.current = touchCurrent;
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current || gameOver) return;
 
-    const touchEnd = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY,
-    };
-
-    const dx = touchEnd.x - touchStart.current.x;
-    const dy = touchEnd.y - touchStart.current.y;
-
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    // Minimum swipe distance to trigger move
-    if (Math.max(absDx, absDy) > 30) {
-      if (isPaused) return;
-      
-      const queue = inputQueueRef.current;
-      const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
-      let newDir: Point | null = null;
-
-      if (absDx > absDy) {
-        // Horizontal swipe
-        if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
-        else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
-      } else {
-        // Vertical swipe
-        if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
-        else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
-      }
-
-      if (newDir) {
-        if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
-          if (queue.length < 3) {
-            queue.push(newDir);
-          }
-        }
-      }
-    } else {
+    if (!swipeHandled.current) {
       // Tap detected - check if it's in the middle area
+      const touchEnd = {
+        x: e.changedTouches[0].clientX,
+        y: e.changedTouches[0].clientY,
+      };
       const rect = e.currentTarget.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -119,6 +147,7 @@ export default function SnakeGame({
     }
 
     touchStart.current = null;
+    swipeHandled.current = false;
   };
 
   const generateObstacles = useCallback((currentSnake: Point[], count: number) => {
@@ -370,6 +399,7 @@ export default function SnakeGame({
     <div 
       className="flex flex-col items-center justify-center w-full h-full relative touch-none"
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <div
@@ -720,7 +750,7 @@ export default function SnakeGame({
       </AnimatePresence>
 
       <AnimatePresence>
-        {isPaused && !gameOver && (
+        {isPaused && !gameOver && !showInstructions && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(4px)' }}
@@ -730,6 +760,49 @@ export default function SnakeGame({
             <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
               PAUSED
             </h2>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showInstructions && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(8px)' }}
+            exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-30 p-6 text-center"
+          >
+            <h2 className="text-3xl font-display font-bold text-cyan-400 mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+              HOW TO PLAY
+            </h2>
+            <div className="flex flex-col gap-4 text-white/90 mb-8 max-w-xs">
+              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="w-12 h-12 flex items-center justify-center bg-cyan-500/20 rounded-full shrink-0">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <p className="text-sm text-left">Swipe anywhere on the screen to change direction.</p>
+              </div>
+              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
+                <div className="w-12 h-12 flex items-center justify-center bg-fuchsia-500/20 rounded-full shrink-0">
+                  <svg className="w-6 h-6 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                </div>
+                <p className="text-sm text-left">Tap the center of the screen to pause or resume.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('hasSeenSwipeInstructions', 'true');
+                setShowInstructions(false);
+                setIsPaused(false);
+              }}
+              className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-fuchsia-600 text-white font-bold rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition-all tracking-widest"
+            >
+              GOT IT
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
