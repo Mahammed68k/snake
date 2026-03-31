@@ -39,6 +39,11 @@ export default function SnakeGame({
     { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
     { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
   ]);
+  const prevSnakeRef = useRef<Point[]>(snake);
+
+  useEffect(() => {
+    prevSnakeRef.current = snake;
+  }, [snake]);
   const [direction, setDirection] = useState<Point>(INITIAL_DIRECTION);
   const [food, setFood] = useState<Point>({ x: 5, y: 5 });
   const [obstacles, setObstacles] = useState<Point[]>([]);
@@ -51,18 +56,17 @@ export default function SnakeGame({
     const lastRevive = localStorage.getItem('lastReviveDate');
     return lastRevive !== new Date().toDateString();
   });
-  const [showInstructions, setShowInstructions] = useState<boolean>(() => {
-    const hasSeen = localStorage.getItem('hasSeenSwipeInstructions');
-    const isMobile = window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    return !hasSeen && isMobile;
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    return window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   });
 
-  // Pause game initially if showing instructions
   useEffect(() => {
-    if (showInstructions) {
-      setIsPaused(true);
-    }
-  }, [showInstructions]);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    };
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const inputQueueRef = useRef<Point[]>([]);
   const lastExecutedDirectionRef = useRef<Point>(INITIAL_DIRECTION);
@@ -108,34 +112,44 @@ export default function SnakeGame({
     const absDy = Math.abs(dy);
 
     // Minimum swipe distance to trigger move (lowered to 20 for more responsiveness)
-    if (Math.max(absDx, absDy) > 20) {
+    if (Math.max(absDx, absDy) > 30) {
       swipeHandled.current = true;
       if (!isPaused) {
         const queue = inputQueueRef.current;
         const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
         let newDir: Point | null = null;
+        let isDistinctAxis = false;
 
-        if (absDx > absDy) {
+        // Require dominant axis to be significantly larger to prevent diagonal zig-zags
+        if (absDx > absDy * 1.5) {
+          isDistinctAxis = true;
           // Horizontal swipe
           if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
           else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
-        } else {
+        } else if (absDy > absDx * 1.5) {
+          isDistinctAxis = true;
           // Vertical swipe
           if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
           else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
         }
 
-        if (newDir) {
-          if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
-            if (queue.length < 3) {
-              queue.push(newDir);
+        if (isDistinctAxis && newDir) {
+          // Check if it's a valid move (not opposite)
+          const isOpposite = (newDir.x !== 0 && lastDir.x === newDir.x * -1) ||
+                             (newDir.y !== 0 && lastDir.y === newDir.y * -1);
+          
+          if (!isOpposite) {
+            if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+              if (queue.length < 3) {
+                queue.push(newDir);
+              }
             }
           }
+          // Always update touch start when a distinct axis movement is detected
+          // This allows continuous swiping (L-shapes) without accumulating diagonal error
+          touchStart.current = touchCurrent;
         }
       }
-      
-      // Update touch start to current position to allow continuous swiping (e.g. L-shapes)
-      touchStart.current = touchCurrent;
     }
   };
 
@@ -592,9 +606,16 @@ export default function SnakeGame({
             }
           }
 
+          // Check if this segment wrapped around
+          const oldSegment = prevSnakeRef.current[index];
+          const isWrapped = oldSegment && (
+            Math.abs(segment.x - oldSegment.x) > 1 ||
+            Math.abs(segment.y - oldSegment.y) > 1
+          );
+
           return (
             <motion.div
-              key={`${index}-${segment.x}-${segment.y}`}
+              key={`segment-${index}`}
               layout
               initial={false}
               animate={{
@@ -605,7 +626,7 @@ export default function SnakeGame({
               transition={{
                 type: 'tween',
                 ease: 'linear',
-                duration: speed / 1000,
+                duration: isWrapped ? 0 : speed / 1000,
               }}
               className="absolute flex items-center justify-center"
               style={{
@@ -766,7 +787,7 @@ export default function SnakeGame({
       </AnimatePresence>
 
       <AnimatePresence>
-        {isPaused && !gameOver && !showInstructions && (
+        {isPaused && !gameOver && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(4px)' }}
@@ -780,73 +801,13 @@ export default function SnakeGame({
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showInstructions && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
-            animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(8px)' }}
-            exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-30 p-6 text-center"
-          >
-            <h2 className="text-3xl font-display font-bold text-cyan-400 mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-              HOW TO PLAY
-            </h2>
-            <div className="flex flex-col gap-4 text-white/90 mb-8 max-w-xs">
-              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="flex flex-col items-center gap-1 shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↑</div>
-                  <div className="flex gap-1">
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">←</div>
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↓</div>
-                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">→</div>
-                  </div>
-                </div>
-                <p className="text-sm text-left">Swipe anywhere on the screen to change direction.</p>
-              </div>
-              <div className="flex items-center gap-4 bg-white/5 p-4 rounded-xl border border-white/10">
-                <div className="w-12 h-12 flex items-center justify-center bg-fuchsia-500/20 rounded-full shrink-0">
-                  <svg className="w-6 h-6 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                  </svg>
-                </div>
-                <p className="text-sm text-left">Tap the center of the screen to pause or resume.</p>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                localStorage.setItem('hasSeenSwipeInstructions', 'true');
-                setShowInstructions(false);
-                setIsPaused(false);
-              }}
-              className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-fuchsia-600 text-white font-bold rounded-full shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-105 active:scale-95 transition-all tracking-widest"
-            >
-              GOT IT
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Mobile D-Pad Controls Overlay */}
-      {isMobile && !gameOver && !showInstructions && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20 opacity-50 hover:opacity-90 transition-opacity pointer-events-auto">
-          <button 
-            className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
-            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 0, y: -1 }); }}
-          >↑</button>
-          <div className="flex gap-12">
-            <button 
-              className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: -1, y: 0 }); }}
-            >←</button>
-            <button 
-              className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 1, y: 0 }); }}
-            >→</button>
+      {/* Current Direction Indicator for Mobile */}
+      {isMobile && !gameOver && (
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-20 opacity-40 pointer-events-none">
+          <span className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold">Direction</span>
+          <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl backdrop-blur-sm">
+            {direction.y === -1 ? '↑' : direction.y === 1 ? '↓' : direction.x === -1 ? '←' : '→'}
           </div>
-          <button 
-            className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl active:bg-white/30 backdrop-blur-sm touch-manipulation"
-            onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDirectionClick({ x: 0, y: 1 }); }}
-          >↓</button>
         </div>
       )}
     </div>

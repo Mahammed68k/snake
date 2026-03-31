@@ -76,6 +76,7 @@ export default function App() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('snakeSettings', JSON.stringify(settings));
@@ -94,10 +95,6 @@ export default function App() {
       
       if (currentUser) {
         setNewName(currentUser.displayName || '');
-        
-        if (currentUser.isAnonymous && !currentUser.displayName) {
-          setShowProfileModal(true);
-        }
         
         // Fetch high score from Firestore based on provider asynchronously
         const fetchHighScore = async () => {
@@ -146,17 +143,20 @@ export default function App() {
     e.preventDefault();
     if (!auth.currentUser || !newName.trim() || isUpdating) return;
 
-    setIsUpdating(true);
-    setNameError(null);
     const desiredName = newName.trim();
-    const provider = getUserProvider(auth.currentUser);
+    const isGuest = auth.currentUser.isAnonymous;
     
-    if (provider === 'guest' && desiredName.length < 4) {
-      setNameError("Guest name must be at least 4 characters.");
-      setIsUpdating(false);
-      return;
+    if (isGuest) {
+      const isValidName = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{4,}$/.test(desiredName);
+      if (!isValidName) {
+        setNameError("Guest names must be at least 4 chars, 1 uppercase, 1 lowercase, and 1 number.");
+        return;
+      }
     }
 
+    setIsUpdating(true);
+    setNameError(null);
+    const provider = getUserProvider(auth.currentUser);
     const collectionName = `leaderboard_${provider}`;
     const path = `${collectionName}/${auth.currentUser.uid}`;
     
@@ -252,6 +252,25 @@ export default function App() {
         handleFirestoreError(error, OperationType.WRITE, path);
       }
       console.error("Error saving score:", error);
+    }
+  };
+
+  const handlePlayGame = () => {
+    if (!user) return;
+    
+    const hasSeen = localStorage.getItem(`snake_has_seen_instructions_${user.uid}`);
+    
+    if (!hasSeen) {
+      if (highScore > 0) {
+        // Existing user who already has a score, don't bother them
+        localStorage.setItem(`snake_has_seen_instructions_${user.uid}`, 'true');
+        setGameState('playing');
+      } else {
+        // New user (or existing user with 0 score)
+        setShowInstructions(true);
+      }
+    } else {
+      setGameState('playing');
     }
   };
 
@@ -496,7 +515,7 @@ export default function App() {
                 className="flex flex-col gap-4 w-full max-w-[300px]"
               >
                 <button
-                  onClick={() => setGameState('playing')}
+                  onClick={handlePlayGame}
                   className="w-full px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:shadow-[0_0_35px_rgba(6,182,212,0.8)] hover:scale-105 active:scale-95"
                 >
                   PLAY GAME
@@ -517,22 +536,6 @@ export default function App() {
       {!isFullScreen && gameState === 'playing' && (
         <div className="absolute bottom-4 left-4 right-4 flex flex-col md:flex-row items-end justify-end gap-4 z-20 pointer-events-none">
           {/* Right Side: Controls (Hidden on small screens to save space) */}
-          <div className="hidden lg:flex flex-col gap-4 pointer-events-auto w-80">
-            {/* Instructions */}
-            <div className="bg-black/40 border border-cyan-900/50 rounded-xl p-4 backdrop-blur-md">
-              <h3 className="text-cyan-400 font-display font-bold mb-2 tracking-wider text-xs">CONTROLS</h3>
-              <ul className="space-y-1.5 text-[10px] text-gray-300">
-                <li className="flex items-center justify-between">
-                  <span>Move</span>
-                  <span className="text-fuchsia-400 font-mono">WASD / Arrows / Swipe</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Pause</span>
-                  <span className="text-cyan-300 font-mono">Space / Tap Center</span>
-                </li>
-              </ul>
-            </div>
-          </div>
         </div>
       )}
 
@@ -557,19 +560,17 @@ export default function App() {
       {showProfileModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)]">
-            {!(user?.isAnonymous && !user?.displayName) && (
-              <button 
-                onClick={() => setShowProfileModal(false)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+            <button 
+              onClick={() => setShowProfileModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
             <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 tracking-wider">
-              {user?.isAnonymous && !user?.displayName ? 'CHOOSE A NAME' : 'USER NAME'}
+              USER NAME
             </h2>
             
             <form onSubmit={handleUpdateName} className="space-y-4">
@@ -582,10 +583,10 @@ export default function App() {
                     setNewName(e.target.value);
                     setNameError(null);
                   }}
-                  placeholder="Enter your name"
+                  placeholder="Min 4 chars, 1 uppercase, 1 lowercase, 1 number..."
                   className={`w-full bg-white/5 border ${nameError ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-700`}
-                  maxLength={20}
                   minLength={user?.isAnonymous ? 4 : undefined}
+                  maxLength={20}
                   required
                 />
                 {nameError && (
@@ -602,6 +603,99 @@ export default function App() {
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Instructions Modal */}
+      {showInstructions && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)]"
+          >
+            <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 text-center tracking-wider">HOW TO PLAY</h2>
+            
+            <div className="space-y-6 mb-8 text-gray-300">
+              <div className="flex flex-col items-center gap-3 text-center">
+                {('ontouchstart' in window || navigator.maxTouchPoints > 0) ? (
+                  <>
+                    <div className="flex items-center justify-center gap-6 mb-2">
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="w-10 h-10 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        <span className="text-[10px] uppercase tracking-widest text-cyan-500 font-bold">Swipe</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="w-10 h-10 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                        <span className="text-[10px] uppercase tracking-widest text-cyan-500 font-bold">Swipe</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-2">
+                        <svg className="w-10 h-10 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                        </svg>
+                        <span className="text-[10px] uppercase tracking-widest text-fuchsia-500 font-bold">Tap</span>
+                      </div>
+                    </div>
+                    <p className="font-medium text-lg text-white">Swipe to Move</p>
+                    <p className="text-sm">Swipe anywhere to move. Tap the center to pause.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-6 mb-2">
+                      {/* WASD */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-sm">W</div>
+                        <div className="flex gap-1">
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-sm">A</div>
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-sm">S</div>
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-sm">D</div>
+                        </div>
+                      </div>
+                      <span className="text-cyan-500/50 text-xs font-bold uppercase">or</span>
+                      {/* Arrows */}
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↑</div>
+                        <div className="flex gap-1">
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">←</div>
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↓</div>
+                          <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">→</div>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="font-medium text-lg text-white">Use Keyboard</p>
+                    <p className="text-sm">Use the Arrow keys or W, A, S, D to control the snake's direction.</p>
+                  </>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/10">
+                <div className="w-3 h-3 rounded-full bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.8)]"></div>
+                <p className="text-sm">Eat the glowing food to grow longer and increase your score.</p>
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/5 p-3 rounded-xl border border-white/10">
+                <div className="w-4 h-4 rounded-sm border-2 border-red-500/50 bg-red-500/20"></div>
+                <p className="text-sm">Avoid hitting your own tail or obstacles!</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => {
+                if (user) {
+                  localStorage.setItem(`snake_has_seen_instructions_${user.uid}`, 'true');
+                }
+                setShowInstructions(false);
+                setGameState('playing');
+              }}
+              className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95 tracking-widest text-sm"
+            >
+              GOT IT, LET'S PLAY!
+            </button>
+          </motion.div>
         </div>
       )}
 
