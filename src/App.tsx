@@ -130,6 +130,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleProfileUpdate = () => {
+      if (auth.currentUser) {
+        setUser({ ...auth.currentUser } as User);
+        setNewName(auth.currentUser.displayName || '');
+      }
+    };
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profileUpdated', handleProfileUpdate);
+  }, []);
+
+  useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullScreen) {
         setIsFullScreen(false);

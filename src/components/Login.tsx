@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { signInWithPopup, signInAnonymously, updateProfile } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, facebookProvider, db } from '../firebase';
 
 export default function Login() {
@@ -96,6 +96,16 @@ export default function Login() {
 
       const userCredential = await signInAnonymously(auth);
       await updateProfile(userCredential.user, { displayName: trimmedName });
+      
+      const scoreRef = doc(db, 'leaderboard_guest', userCredential.user.uid);
+      await setDoc(scoreRef, {
+        userId: userCredential.user.uid,
+        displayName: trimmedName,
+        score: 0,
+        timestamp: serverTimestamp()
+      }, { merge: true });
+
+      window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/admin-restricted-operation') {
