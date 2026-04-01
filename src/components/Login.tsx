@@ -15,6 +15,7 @@ export default function Login() {
       setError(null);
       setIsLoading(true);
       await signInWithPopup(auth, googleProvider);
+      localStorage.setItem('authProvider', 'google');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
@@ -36,6 +37,7 @@ export default function Login() {
       setError(null);
       setIsLoading(true);
       await signInWithPopup(auth, facebookProvider);
+      localStorage.setItem('authProvider', 'facebook');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
@@ -57,6 +59,7 @@ export default function Login() {
       setError(null);
       setIsLoading(true);
       await signInWithPopup(auth, playGamesProvider);
+      localStorage.setItem('authProvider', 'playgames');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
@@ -93,7 +96,7 @@ export default function Login() {
       setIsLoading(true);
 
       // Check if name is already taken across all providers
-      const providers = ['google', 'facebook', 'guest'];
+      const providers = ['google', 'facebook', 'playgames', 'guest'];
       let nameTaken = false;
       
       for (const p of providers) {
@@ -126,6 +129,7 @@ export default function Login() {
         timestamp: serverTimestamp()
       }, { merge: true });
 
+      localStorage.setItem('authProvider', 'guest');
       window.dispatchEvent(new Event('profileUpdated'));
     } catch (err: any) {
       console.error(err);

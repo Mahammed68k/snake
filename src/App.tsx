@@ -30,8 +30,13 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'menu' | 'playing'>('intro');
 
-  const getUserProvider = (u: User | null): 'google' | 'facebook' | 'guest' => {
+  const getUserProvider = (u: User | null): 'google' | 'facebook' | 'playgames' | 'guest' => {
     if (!u || u.isAnonymous) return 'guest';
+    const storedProvider = localStorage.getItem('authProvider');
+    if (storedProvider === 'playgames') return 'playgames';
+    if (storedProvider === 'facebook') return 'facebook';
+    if (storedProvider === 'google') return 'google';
+
     const providerId = u.providerData[0]?.providerId;
     if (providerId === 'facebook.com') return 'facebook';
     return 'google';
@@ -43,6 +48,27 @@ export default function App() {
       setSyncError(null);
       const authProvider = provider === 'google' ? googleProvider : provider === 'facebook' ? facebookProvider : playGamesProvider;
       await linkWithPopup(user, authProvider);
+      
+      localStorage.setItem('authProvider', provider);
+      
+      // Sync the high score from guest to the new provider
+      const guestScoreRef = doc(db, 'leaderboard_guest', user.uid);
+      const guestScoreDoc = await getDoc(guestScoreRef);
+      
+      if (guestScoreDoc.exists()) {
+        const newScoreRef = doc(db, `leaderboard_${provider}`, user.uid);
+        const newScoreDoc = await getDoc(newScoreRef);
+        
+        const guestData = guestScoreDoc.data();
+        
+        if (!newScoreDoc.exists() || guestData.score > newScoreDoc.data().score) {
+          await setDoc(newScoreRef, {
+            ...guestData,
+            timestamp: serverTimestamp()
+          }, { merge: true });
+        }
+      }
+      
       // Success! The user state will update automatically via onAuthStateChanged
       setShowProfileMenu(false);
     } catch (error: any) {
@@ -173,7 +199,7 @@ export default function App() {
     
     try {
       // Check if name is already taken across all providers
-      const providers = ['google', 'facebook', 'guest'];
+      const providers = ['google', 'facebook', 'playgames', 'guest'];
       let nameTaken = false;
       
       for (const p of providers) {
@@ -231,6 +257,7 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      localStorage.removeItem('authProvider');
     } catch (error) {
       console.error('Error signing out:', error);
     }
