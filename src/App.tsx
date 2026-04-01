@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
 import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
-import { auth, db, googleProvider, facebookProvider } from './firebase';
+import { auth, db, googleProvider, facebookProvider, playGamesProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, X, Palette } from 'lucide-react';
@@ -37,11 +37,11 @@ export default function App() {
     return 'google';
   };
 
-  const handleSyncAccount = async (provider: 'google' | 'facebook') => {
+  const handleSyncAccount = async (provider: 'google' | 'facebook' | 'playgames') => {
     if (!user) return;
     try {
       setSyncError(null);
-      const authProvider = provider === 'google' ? googleProvider : facebookProvider;
+      const authProvider = provider === 'google' ? googleProvider : provider === 'facebook' ? facebookProvider : playGamesProvider;
       await linkWithPopup(user, authProvider);
       // Success! The user state will update automatically via onAuthStateChanged
       setShowProfileMenu(false);
@@ -396,6 +396,15 @@ export default function App() {
                             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                           </svg>
                           Link Facebook
+                        </button>
+                        <button
+                          onClick={() => handleSyncAccount('playgames')}
+                          className="w-full flex items-center gap-3 px-2 py-1.5 text-[10px] text-gray-300 hover:bg-white/5 hover:text-white rounded-lg transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5 text-[#34A853]" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20.2,11.3L5.4,2.7C4.8,2.4,4.2,2.8,4.2,3.5v17.1c0,0.7,0.6,1.1,1.2,0.8l14.8-8.6C20.8,12.5,20.8,11.6,20.2,11.3z M10.4,14.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,14.1,11,14.6,10.4,14.6z M10.4,11.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,11.1,11,11.6,10.4,11.6z M13.4,12.8 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,12.3,14,12.8,13.4,12.8z M13.4,16.4 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,15.9,14,16.4,13.4,16.4z"/>
+                          </svg>
+                          Link Play Games
                         </button>
                         {syncError && (
                           <p className="px-2 py-1 text-[8px] text-red-500 leading-tight">{syncError}</p>

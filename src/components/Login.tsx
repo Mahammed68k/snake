@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithPopup, signInAnonymously, updateProfile } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, googleProvider, facebookProvider, db } from '../firebase';
+import { auth, googleProvider, facebookProvider, playGamesProvider, db } from '../firebase';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +46,27 @@ export default function Login() {
         return;
       }
       setError(err.message || 'Failed to sign in with Facebook');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePlayGamesLogin = async () => {
+    if (isLoading) return;
+    try {
+      setError(null);
+      setIsLoading(true);
+      await signInWithPopup(auth, playGamesProvider);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+        return;
+      }
+      setError(err.message || 'Failed to sign in with Google Play Games');
     } finally {
       setIsLoading(false);
     }
@@ -169,6 +190,23 @@ export default function Login() {
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                     Continue with Facebook
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handlePlayGamesLogin}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#34A853]/10 hover:bg-[#34A853]/20 border border-[#34A853]/30 rounded-xl text-white font-medium transition-all hover:border-[#34A853]/60 hover:shadow-[0_0_15px_rgba(52,168,83,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-[#34A853] border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-[#34A853]" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20.2,11.3L5.4,2.7C4.8,2.4,4.2,2.8,4.2,3.5v17.1c0,0.7,0.6,1.1,1.2,0.8l14.8-8.6C20.8,12.5,20.8,11.6,20.2,11.3z M10.4,14.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,14.1,11,14.6,10.4,14.6z M10.4,11.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,11.1,11,11.6,10.4,11.6z M13.4,12.8 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,12.3,14,12.8,13.4,12.8z M13.4,16.4 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,15.9,14,16.4,13.4,16.4z"/>
+                    </svg>
+                    Continue with Play Games
                   </>
                 )}
               </button>
