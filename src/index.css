@@ -36,3 +36,17 @@ body {
 .animate-hood-flare {
   animation: hoodFlare 1.5s infinite alternate ease-in-out;
 }
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #06b6d4;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d946ef;
+}

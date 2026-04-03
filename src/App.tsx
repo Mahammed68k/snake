@@ -659,7 +659,7 @@ export default function App() {
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)]"
+            className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] max-h-[90vh] overflow-y-auto custom-scrollbar"
           >
             <h2 className="text-xl font-display font-bold text-cyan-400 mb-6 text-center tracking-wider">HOW TO PLAY</h2>
             

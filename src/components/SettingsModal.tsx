@@ -27,7 +27,7 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
   };
 
   return (
-    <div className="bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] w-full max-w-sm animate-in zoom-in duration-300">
+    <div className="bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] w-full max-w-sm animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div className="flex items-center justify-end mb-6">
         <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
           <X size={24} />
