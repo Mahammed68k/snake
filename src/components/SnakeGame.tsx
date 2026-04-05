@@ -705,7 +705,10 @@ export default function SnakeGame({
             initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(8px)' }}
             exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-20"
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg z-[100] pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
             <motion.h2 
               initial={{ scale: 0.5, opacity: 0, y: -20 }}
@@ -728,7 +731,7 @@ export default function SnakeGame({
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="flex flex-col gap-3 w-full max-w-[250px]"
+              className="flex flex-col gap-3 w-full max-w-[250px] relative z-[110]"
             >
               {canRevive && (
                 <motion.button
@@ -800,16 +803,6 @@ export default function SnakeGame({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Current Direction Indicator for Mobile */}
-      {isMobile && !gameOver && (
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 z-20 opacity-40 pointer-events-none">
-          <span className="text-[10px] uppercase tracking-widest text-cyan-400 font-bold">Direction</span>
-          <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white text-2xl backdrop-blur-sm">
-            {direction.y === -1 ? '↑' : direction.y === 1 ? '↓' : direction.x === -1 ? '←' : '→'}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
