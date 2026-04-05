@@ -51,6 +51,10 @@ export default function SnakeGame({
   const [showMainMenuButton, setShowMainMenuButton] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const isPausedRef = useRef<boolean>(false);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
   const [justAte, setJustAte] = useState<boolean>(false);
   const [canRevive, setCanRevive] = useState<boolean>(() => {
     const lastRevive = localStorage.getItem('lastReviveDate');
@@ -73,6 +77,112 @@ export default function SnakeGame({
   const touchStart = useRef<Point | null>(null);
   const swipeHandled = useRef<boolean>(false);
 
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = gameContainerRef.current;
+    if (!container) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStart.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+      swipeHandled.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!touchStart.current || gameOver) return;
+
+      const touchCurrent = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+
+      const dx = touchCurrent.x - touchStart.current.x;
+      const dy = touchCurrent.y - touchStart.current.y;
+
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // Ultra-low threshold for instant response
+      if (Math.max(absDx, absDy) > 10) {
+        // Prevent scrolling while swiping
+        if (e.cancelable) e.preventDefault();
+        swipeHandled.current = true;
+        
+        const queue = inputQueueRef.current;
+        const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
+        let newDir: Point | null = null;
+
+        // Simple dominant axis check - whichever is larger wins
+        if (absDx > absDy) {
+          // Horizontal swipe
+          if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
+          else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
+        } else {
+          // Vertical swipe
+          if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
+          else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
+        }
+
+        if (newDir) {
+          // Resume game if it was paused
+          if (isPausedRef.current) setIsPaused(false);
+
+          // Check if it's a valid move (not opposite)
+          const isOpposite = (newDir.x !== 0 && lastDir.x === newDir.x * -1) ||
+                             (newDir.y !== 0 && lastDir.y === newDir.y * -1);
+          
+          if (!isOpposite) {
+            if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
+              if (queue.length < 4) { // Increased queue size
+                queue.push(newDir);
+              }
+            }
+          }
+          // Update touch start to allow continuous multi-directional swiping
+          touchStart.current = touchCurrent;
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!touchStart.current || gameOver) return;
+
+      if (!swipeHandled.current) {
+        const touchEnd = {
+          x: e.changedTouches[0].clientX,
+          y: e.changedTouches[0].clientY,
+        };
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const distFromCenter = Math.sqrt(
+          Math.pow(touchEnd.x - centerX, 2) + Math.pow(touchEnd.y - centerY, 2)
+        );
+        
+        if (distFromCenter < rect.width * 0.3) {
+          setIsPaused((prev) => !prev);
+        }
+      }
+
+      touchStart.current = null;
+      swipeHandled.current = false;
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [gameOver]);
+
   const handleDirectionClick = (newDir: Point) => {
     if (gameOver) return;
     const queue = inputQueueRef.current;
@@ -82,102 +192,11 @@ export default function SnakeGame({
     if (newDir.y !== 0 && lastDir.y === newDir.y * -1) return;
     
     if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
-      if (queue.length < 3) {
+      if (queue.length < 4) {
         queue.push(newDir);
       }
     }
     setIsPaused(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-    swipeHandled.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart.current || gameOver) return;
-
-    const touchCurrent = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-
-    const dx = touchCurrent.x - touchStart.current.x;
-    const dy = touchCurrent.y - touchStart.current.y;
-
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    // Minimum swipe distance to trigger move (lowered to 20 for more responsiveness)
-    if (Math.max(absDx, absDy) > 30) {
-      swipeHandled.current = true;
-      if (!isPaused) {
-        const queue = inputQueueRef.current;
-        const lastDir = queue.length > 0 ? queue[queue.length - 1] : lastExecutedDirectionRef.current;
-        let newDir: Point | null = null;
-        let isDistinctAxis = false;
-
-        // Require dominant axis to be significantly larger to prevent diagonal zig-zags
-        if (absDx > absDy * 1.5) {
-          isDistinctAxis = true;
-          // Horizontal swipe
-          if (dx > 0 && lastDir.x !== -1) newDir = { x: 1, y: 0 };
-          else if (dx < 0 && lastDir.x !== 1) newDir = { x: -1, y: 0 };
-        } else if (absDy > absDx * 1.5) {
-          isDistinctAxis = true;
-          // Vertical swipe
-          if (dy > 0 && lastDir.y !== -1) newDir = { x: 0, y: 1 };
-          else if (dy < 0 && lastDir.y !== 1) newDir = { x: 0, y: -1 };
-        }
-
-        if (isDistinctAxis && newDir) {
-          // Check if it's a valid move (not opposite)
-          const isOpposite = (newDir.x !== 0 && lastDir.x === newDir.x * -1) ||
-                             (newDir.y !== 0 && lastDir.y === newDir.y * -1);
-          
-          if (!isOpposite) {
-            if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
-              if (queue.length < 3) {
-                queue.push(newDir);
-              }
-            }
-          }
-          // Always update touch start when a distinct axis movement is detected
-          // This allows continuous swiping (L-shapes) without accumulating diagonal error
-          touchStart.current = touchCurrent;
-        }
-      }
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current || gameOver) return;
-
-    if (!swipeHandled.current) {
-      // Tap detected - check if it's in the middle area
-      const touchEnd = {
-        x: e.changedTouches[0].clientX,
-        y: e.changedTouches[0].clientY,
-      };
-      const rect = e.currentTarget.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      
-      const distFromCenter = Math.sqrt(
-        Math.pow(touchEnd.x - centerX, 2) + Math.pow(touchEnd.y - centerY, 2)
-      );
-      
-      // If tap is within 30% of the board width from the center, toggle pause
-      if (distFromCenter < rect.width * 0.3) {
-        setIsPaused((prev) => !prev);
-      }
-    }
-
-    touchStart.current = null;
-    swipeHandled.current = false;
   };
 
   const generateObstacles = useCallback((currentSnake: Point[], count: number) => {
@@ -345,7 +364,7 @@ export default function SnakeGame({
 
       if (newDir) {
         if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
-          if (queue.length < 3) {
+          if (queue.length < 4) {
             queue.push(newDir);
           }
         }
@@ -427,10 +446,8 @@ export default function SnakeGame({
 
   return (
     <div 
+      ref={gameContainerRef}
       className="flex flex-col items-center justify-center w-full h-full relative touch-none"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       <div
         className={`relative bg-black/60 border-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
