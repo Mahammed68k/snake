@@ -24,6 +24,31 @@
         }
       },
       "required": ["userId", "displayName", "score", "timestamp"]
+    },
+    "FeedbackEntry": {
+      "title": "FeedbackEntry",
+      "description": "User feedback and suggestions",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user submitting feedback"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user"
+        },
+        "text": {
+          "type": "string",
+          "description": "The feedback text"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the feedback was submitted"
+        }
+      },
+      "required": ["userId", "displayName", "text", "timestamp"]
     }
   },
   "firestore": {
@@ -32,6 +57,12 @@
         "$ref": "#/entities/LeaderboardEntry"
       },
       "description": "Collection of high scores"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": {
+        "$ref": "#/entities/FeedbackEntry"
+      },
+      "description": "Collection of user feedback"
     }
   }
 }

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
-import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider, playGamesProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings, X, Palette } from 'lucide-react';
+import { Settings, X, Palette, MessageSquare } from 'lucide-react';
 import SnakeGame from './components/SnakeGame';
 import Login from './components/Login';
 import Leaderboard from './components/Leaderboard';
@@ -27,6 +27,10 @@ export default function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<'intro' | 'menu' | 'playing'>('intro');
 
@@ -263,6 +267,30 @@ export default function App() {
     }
   };
 
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser || !feedbackText.trim() || isSubmittingFeedback) return;
+
+    setIsSubmittingFeedback(true);
+    try {
+      await addDoc(collection(db, 'feedback'), {
+        userId: auth.currentUser.uid,
+        displayName: auth.currentUser.displayName || 'Anonymous',
+        text: feedbackText.trim(),
+        timestamp: serverTimestamp()
+      });
+      setFeedbackSuccess(true);
+      setFeedbackText('');
+    } catch (error: any) {
+      console.error("Error submitting feedback:", error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.CREATE, 'feedback');
+      }
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
   const handleGameOver = async (finalScore: number) => {
     if (!user || finalScore === 0) return;
     
@@ -397,6 +425,17 @@ export default function App() {
                   >
                     <Palette className="w-4 h-4" />
                     THEME
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowFeedbackModal(true);
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold tracking-wider text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors group drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    FEEDBACK
                   </button>
 
                   {user.isAnonymous && (
@@ -754,6 +793,61 @@ export default function App() {
             onUpdate={setSettings}
             onClose={() => setShowSettings(false)}
           />
+        </div>
+      )}
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-[#111] border border-cyan-500/30 rounded-2xl p-6 w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)]">
+            <h2 className="text-2xl font-display font-bold text-cyan-400 mb-2">Help & Feedback</h2>
+            <p className="text-gray-400 text-sm mb-6">
+              Are you frustrated with something? Have an idea to improve the game? Let us know!
+            </p>
+            
+            {feedbackSuccess ? (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
+                <p className="text-green-400 font-bold mb-2">Thank you!</p>
+                <p className="text-gray-300 text-sm mb-4">Your feedback has been submitted successfully.</p>
+                <button
+                  onClick={() => {
+                    setShowFeedbackModal(false);
+                    setFeedbackSuccess(false);
+                  }}
+                  className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-4">
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Tell us what's on your mind..."
+                  className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all resize-none h-32"
+                  required
+                />
+                
+                <div className="flex gap-3 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-bold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingFeedback || !feedbackText.trim()}
+                    className="flex-1 py-3 bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingFeedback ? 'Sending...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       )}
     </div>
