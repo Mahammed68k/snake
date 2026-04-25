@@ -9,6 +9,27 @@ export default function Login() {
   const [showGuestInput, setShowGuestInput] = useState(false);
   const [guestName, setGuestName] = useState('');
 
+  const handleSocialLoginError = (err: any, providerName: string) => {
+    console.error(err);
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      setError(`The ${providerName} login popup was closed. Please try again or Play as Guest.`);
+      return;
+    }
+    if (err.code === 'auth/popup-blocked') {
+      setError('Popup was blocked by your browser. Please allow popups for this site, or Play as Guest.');
+      return;
+    }
+    if (err.code === 'auth/web-storage-unsupported' || err.code === 'auth/third-party-auth-error') {
+      setError('Your browser is blocking third-party cookies. Please enable them in your browser settings, or Play as Guest.');
+      return;
+    }
+    if (err.code === 'auth/network-request-failed') {
+      setError('Network error. Please check your internet connection and try again.');
+      return;
+    }
+    setError(err.message || `Failed to sign in with ${providerName}`);
+  };
+
   const handleGoogleLogin = async () => {
     if (isLoading) return;
     try {
@@ -17,15 +38,7 @@ export default function Login() {
       await signInWithPopup(auth, googleProvider);
       localStorage.setItem('authProvider', 'google');
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
-        return;
-      }
-      setError(err.message || 'Failed to sign in with Google');
+      handleSocialLoginError(err, 'Google');
     } finally {
       setIsLoading(false);
     }
@@ -39,15 +52,7 @@ export default function Login() {
       await signInWithPopup(auth, facebookProvider);
       localStorage.setItem('authProvider', 'facebook');
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
-        return;
-      }
-      setError(err.message || 'Failed to sign in with Facebook');
+      handleSocialLoginError(err, 'Facebook');
     } finally {
       setIsLoading(false);
     }
@@ -61,15 +66,7 @@ export default function Login() {
       await signInWithPopup(auth, playGamesProvider);
       localStorage.setItem('authProvider', 'playgames');
     } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        return;
-      }
-      if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
-        return;
-      }
-      setError(err.message || 'Failed to sign in with Google Play Games');
+      handleSocialLoginError(err, 'Google Play Games');
     } finally {
       setIsLoading(false);
     }

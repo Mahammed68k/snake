@@ -14,7 +14,7 @@ import IntroScreen from './components/IntroScreen';
 interface GameSettings {
   gridSize: number;
   speed: number;
-  theme: 'cyber' | 'plasma' | 'normal';
+  theme: 'cyber' | 'plasma';
 }
 
 // Error Boundary Component
@@ -79,8 +79,12 @@ export default function App() {
       console.error('Sync error:', error);
       if (error.code === 'auth/credential-already-in-use') {
         setSyncError('This account is already linked to another user.');
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        // Ignore
+      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        setSyncError('Popup was closed. Please try again.');
+      } else if (error.code === 'auth/popup-blocked') {
+        setSyncError('Popup blocked. Please allow popups.');
+      } else if (error.code === 'auth/web-storage-unsupported' || error.code === 'auth/third-party-auth-error') {
+        setSyncError('Third-party cookies are blocked. Please enable them.');
       } else {
         setSyncError(error.message || 'Failed to sync account.');
       }
@@ -92,7 +96,7 @@ export default function App() {
       const parsed = JSON.parse(saved);
       // Handle legacy themes
       if (parsed.theme === 'classic') parsed.theme = 'plasma';
-      if (parsed.theme === 'minimal' || parsed.theme === 'focus') parsed.theme = 'normal';
+      if (parsed.theme === 'minimal' || parsed.theme === 'focus' || parsed.theme === 'normal') parsed.theme = 'cyber';
       return parsed;
     }
     return {
@@ -364,7 +368,7 @@ export default function App() {
                   SNAKE
                 </h1>
                 <p className="text-cyan-300 font-display tracking-widest text-[10px] md:text-xs mt-0.5 opacity-80">
-                  CYBER EDITION
+                  MK EDITION
                 </p>
               </>
             )}
@@ -590,7 +594,7 @@ export default function App() {
                   SNAKE
                 </h1>
                 <p className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80">
-                  CYBER EDITION
+                  MK EDITION
                 </p>
               </motion.div>
               

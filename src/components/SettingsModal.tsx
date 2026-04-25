@@ -4,7 +4,7 @@ import { X, Settings, Palette } from 'lucide-react';
 interface GameSettings {
   gridSize: number;
   speed: number;
-  theme: 'cyber' | 'plasma' | 'normal';
+  theme: 'cyber' | 'plasma';
 }
 
 interface SettingsModalProps {
@@ -44,8 +44,8 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
             <Palette size={14} />
             <span>THEMES</span>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {['cyber', 'plasma', 'normal'].map((t) => (
+          <div className="grid grid-cols-2 gap-2">
+            {['cyber', 'plasma'].map((t) => (
               <button
                 key={t}
                 onClick={() => handleThemeChange(t as GameSettings['theme'])}
@@ -53,9 +53,7 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
                   settings.theme === t
                     ? t === 'cyber'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                      : t === 'plasma'
-                      ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                      : 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                      : 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
                     : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
                 }`}
               >
