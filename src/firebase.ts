@@ -10,6 +10,3 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const googleProvider = new GoogleAuthProvider();
 export const facebookProvider = new FacebookAuthProvider();
-
-export const playGamesProvider = new GoogleAuthProvider();
-playGamesProvider.addScope('https://www.googleapis.com/auth/games');

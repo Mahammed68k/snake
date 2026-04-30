@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
 import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { auth, db, googleProvider, facebookProvider, playGamesProvider } from './firebase';
+import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, X, Palette, MessageSquare } from 'lucide-react';
@@ -50,7 +50,7 @@ export default function App() {
     if (!user) return;
     try {
       setSyncError(null);
-      const authProvider = provider === 'google' ? googleProvider : provider === 'facebook' ? facebookProvider : playGamesProvider;
+      const authProvider = provider === 'google' ? googleProvider : facebookProvider;
       await linkWithPopup(user, authProvider);
       
       localStorage.setItem('authProvider', provider);

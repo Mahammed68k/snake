@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithPopup, signInAnonymously, updateProfile } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, googleProvider, facebookProvider, playGamesProvider, db } from '../firebase';
+import { auth, googleProvider, facebookProvider, db } from '../firebase';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -58,20 +58,6 @@ export default function Login() {
     }
   };
 
-  const handlePlayGamesLogin = async () => {
-    if (isLoading) return;
-    try {
-      setError(null);
-      setIsLoading(true);
-      await signInWithPopup(auth, playGamesProvider);
-      localStorage.setItem('authProvider', 'playgames');
-    } catch (err: any) {
-      handleSocialLoginError(err, 'Google Play Games');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleGuestLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -93,7 +79,7 @@ export default function Login() {
       setIsLoading(true);
 
       // Check if name is already taken across all providers
-      const providers = ['google', 'facebook', 'playgames', 'guest'];
+      const providers = ['google', 'facebook', 'guest'];
       let nameTaken = false;
       
       for (const p of providers) {
@@ -145,9 +131,13 @@ export default function Login() {
         <h1 className="text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] tracking-wider mb-2">
           SNAKE
         </h1>
-        <p className="text-cyan-300 font-display tracking-widest text-sm mb-8 opacity-80">
-          LOGIN TO PLAY
+        <p className="text-cyan-300 font-display tracking-widest text-sm mb-4 opacity-80">
+          MK EDITION
         </p>
+        
+        <div className="text-gray-400 text-sm text-center mb-8 px-2 leading-relaxed">
+          Experience classic Snake gameplay with a modern cyberpunk aesthetic. Compete on global leaderboards, customize themes, and slither your way to the top!
+        </div>
 
         {error && (
           <div className="w-full bg-red-500/20 border border-red-500/50 text-red-400 text-sm p-3 rounded-lg mb-6 text-center">
@@ -191,23 +181,6 @@ export default function Login() {
                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                     Continue with Facebook
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handlePlayGamesLogin}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-[#34A853]/10 hover:bg-[#34A853]/20 border border-[#34A853]/30 rounded-xl text-white font-medium transition-all hover:border-[#34A853]/60 hover:shadow-[0_0_15px_rgba(52,168,83,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-[#34A853] border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 text-[#34A853]" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.2,11.3L5.4,2.7C4.8,2.4,4.2,2.8,4.2,3.5v17.1c0,0.7,0.6,1.1,1.2,0.8l14.8-8.6C20.8,12.5,20.8,11.6,20.2,11.3z M10.4,14.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,14.1,11,14.6,10.4,14.6z M10.4,11.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,11.1,11,11.6,10.4,11.6z M13.4,12.8 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,12.3,14,12.8,13.4,12.8z M13.4,16.4 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,15.9,14,16.4,13.4,16.4z"/>
-                    </svg>
-                    Continue with Play Games
                   </>
                 )}
               </button>
@@ -276,6 +249,12 @@ export default function Login() {
               Play as Guest
             </button>
           )}
+
+          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-500">
+            <a href="/privacy.html" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
+            <span>&bull;</span>
+            <a href="/terms.html" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
+          </div>
         </div>
       </div>
     </div>
