@@ -12,8 +12,7 @@ export default function Login() {
   const handleSocialLoginError = (err: any, providerName: string) => {
     console.error(err);
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-      setError(`The ${providerName} login popup was closed. Please try again or Play as Guest.`);
-      return;
+      return; // Silently ignore popup closed by user
     }
     if (err.code === 'auth/popup-blocked') {
       setError('Popup was blocked by your browser. Please allow popups for this site, or Play as Guest.');
@@ -25,6 +24,15 @@ export default function Login() {
     }
     if (err.code === 'auth/network-request-failed') {
       setError('Network error. Please check your internet connection and try again.');
+      return;
+    }
+    if (err.message && err.message.includes('Invalid Scopes: email')) {
+      setError('Facebook App Setup Error: The "email" permission is missing or not configured correctly in your Meta Developer Dashboard. Make sure you clicked "Save changes", and your Facebook account is listed in "App Roles".');
+      return;
+    }
+    
+    if (err.code === 'auth/invalid-credential-or-provider-id') {
+      setError('Invalid Facebook App ID or configuration. Ensure "Save changes" was clicked in the Meta Dashboard and your Redirect URI is fully saved.');
       return;
     }
     setError(err.message || `Failed to sign in with ${providerName}`);
@@ -136,7 +144,7 @@ export default function Login() {
         </p>
         
         <div className="text-gray-400 text-sm text-center mb-8 px-2 leading-relaxed">
-          Experience classic Snake gameplay with a modern cyberpunk aesthetic. Compete on global leaderboards, customize themes, and slither your way to the top!
+          Experience classic Snake gameplay. Compete on global leaderboards, customize themes, and slither your way to the top!
         </div>
 
         {error && (

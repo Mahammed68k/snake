@@ -23,6 +23,7 @@ export default function App() {
   const [highScore, setHighScore] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIntro, setShowIntro] = useState(true);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -32,7 +33,7 @@ export default function App() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<'intro' | 'menu' | 'playing'>('intro');
+  const [gameState, setGameState] = useState<'menu' | 'playing'>('menu');
 
   const getUserProvider = (u: User | null): 'google' | 'facebook' | 'playgames' | 'guest' => {
     if (!u || u.isAnonymous) return 'guest';
@@ -80,7 +81,8 @@ export default function App() {
       if (error.code === 'auth/credential-already-in-use') {
         setSyncError('This account is already linked to another user.');
       } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        setSyncError('Popup was closed. Please try again.');
+        // Silently ignore
+        return;
       } else if (error.code === 'auth/popup-blocked') {
         setSyncError('Popup blocked. Please allow popups.');
       } else if (error.code === 'auth/web-storage-unsupported' || error.code === 'auth/third-party-auth-error') {
@@ -344,6 +346,16 @@ export default function App() {
     }
   };
 
+  if (showIntro) {
+    return (
+      <div className="h-screen w-screen bg-[#050505] relative overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+        <AnimatePresence mode="wait">
+          <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -359,7 +371,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen bg-[#050505] relative overflow-hidden flex items-center justify-center font-sans p-0 m-0">
       {/* Floating Header / HUD - Hidden in Full Screen */}
-      {!isFullScreen && gameState !== 'intro' && (
+      {!isFullScreen && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
           <div className="flex flex-col pointer-events-auto text-center">
             {gameState === 'playing' && (
@@ -554,9 +566,7 @@ export default function App() {
       {/* Game Area - Full Screen Centered */}
       <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12 landscape:p-2'}`}>
         <AnimatePresence mode="wait">
-          {gameState === 'intro' ? (
-            <IntroScreen key="intro" onComplete={() => setGameState('menu')} />
-          ) : gameState === 'playing' ? (
+          {gameState === 'playing' ? (
             <motion.div 
               key="playing"
               initial={{ opacity: 0, scale: 0.9 }}
