@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Settings, X, Palette, MessageSquare } from 'lucide-react';
 import SnakeGame from './components/SnakeGame';
 import Login from './components/Login';
-import Leaderboard from './components/Leaderboard';
+import Leaderboard, { getAvatarUrl } from './components/Leaderboard';
 import SettingsModal from './components/SettingsModal';
 import IntroScreen from './components/IntroScreen';
 
@@ -47,6 +47,34 @@ export default function App() {
     return 'google';
   };
 
+  const getPhotoURL = (u: User | null): string | null => {
+    if (!u) return null;
+    
+    // Facebook URLs often break or expire, so ignore them to fallback to Dicebear avatars
+    const hasFacebook = u.providerData.some(p => p.providerId === 'facebook.com');
+    if (hasFacebook) return null;
+
+    let url = u.photoURL;
+    if (!url) {
+      for (const provider of u.providerData) {
+        if (provider.photoURL) {
+          url = provider.photoURL;
+          break;
+        }
+      }
+    }
+    
+    if (url && (url.includes('facebook') || url.includes('graph.facebook.com') || url.includes('fbsbx.com'))) {
+      return null;
+    }
+    
+    if (url && url.includes('googleusercontent.com')) {
+      url = url.replace(/=s\d+-c/, '=s400-c');
+    }
+    
+    return url || null;
+  };
+
   const handleSyncAccount = async (provider: 'google' | 'facebook' | 'playgames') => {
     if (!user) return;
     try {
@@ -76,6 +104,8 @@ export default function App() {
                 if (!newScoreDoc.exists() || guestData.score > newScoreDoc.data().score) {
                   await setDoc(newScoreRef, {
                     ...guestData,
+                    displayName: result.user.displayName || guestData.displayName,
+                    photoURL: getPhotoURL(result.user),
                     timestamp: serverTimestamp()
                   }, { merge: true });
                 }
@@ -102,6 +132,8 @@ export default function App() {
         if (!newScoreDoc.exists() || guestData.score > newScoreDoc.data().score) {
           await setDoc(newScoreRef, {
             ...guestData,
+            displayName: auth.currentUser?.displayName || guestData.displayName,
+            photoURL: getPhotoURL(auth.currentUser),
             timestamp: serverTimestamp()
           }, { merge: true });
         }
@@ -181,6 +213,14 @@ export default function App() {
             if (scoreDoc.exists()) {
               const dbScore = scoreDoc.data().score;
               setHighScore(dbScore);
+              
+              // Update profile picture and name if they played before
+              if (getPhotoURL(currentUser) || currentUser.displayName) {
+                await setDoc(scoreRef, {
+                  displayName: currentUser.displayName || scoreDoc.data().displayName,
+                  photoURL: getPhotoURL(currentUser),
+                }, { merge: true });
+              }
             } else {
               setHighScore(0);
               // Reserve the name if it's already set (e.g. Google/Facebook)
@@ -188,6 +228,7 @@ export default function App() {
                 await setDoc(scoreRef, {
                   userId: currentUser.uid,
                   displayName: currentUser.displayName,
+                  photoURL: getPhotoURL(currentUser),
                   score: 0,
                   timestamp: serverTimestamp()
                 });
@@ -288,6 +329,7 @@ export default function App() {
         await setDoc(scoreRef, {
           userId: auth.currentUser.uid,
           displayName: desiredName,
+          photoURL: getPhotoURL(auth.currentUser),
           score: 0,
           timestamp: serverTimestamp()
         });
@@ -359,6 +401,7 @@ export default function App() {
         await setDoc(scoreRef, {
           userId: user.uid,
           displayName,
+          photoURL: getPhotoURL(user),
           score: finalScore,
           timestamp: serverTimestamp()
         }, { merge: true });
@@ -457,26 +500,35 @@ export default function App() {
                   className="fixed inset-0 z-30" 
                   onClick={() => setShowProfileMenu(false)}
                 />
-                <div className="absolute top-12 right-0 w-48 bg-black/90 border border-cyan-500/30 rounded-xl p-2 backdrop-blur-xl z-40 shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-3 py-2 border-bottom border-white/5 mb-1">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account</p>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-cyan-400 truncate font-mono">
-                        {user.displayName || (user.isAnonymous ? 'Anonymous' : (user.email || 'User'))}
-                      </p>
-                      {!user.isAnonymous && (
-                        <button
-                          onClick={() => {
-                            setShowProfileModal(true);
-                            setShowProfileMenu(false);
-                          }}
-                          className="p-1 text-gray-500 hover:text-cyan-400 transition-colors ml-2"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
+                <div className="absolute top-12 right-0 w-56 bg-black/90 border border-cyan-500/30 rounded-xl p-2 backdrop-blur-xl z-40 shadow-[0_10px_30px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-3 py-2 border-bottom border-white/5 mb-1 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-white/10 shrink-0 border border-white/10">
+                      {getPhotoURL(user) ? (
+                        <img src={getPhotoURL(user)!} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={getAvatarUrl(user.displayName || (user.isAnonymous ? 'Anon' : (user.email || 'Anon')), 0)} alt="Profile" className="w-full h-full object-cover scale-110 mt-1" />
                       )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-cyan-400 truncate font-mono">
+                          {user.displayName || (user.isAnonymous ? 'Anonymous' : (user.email || 'User'))}
+                        </p>
+                        {!user.isAnonymous && (
+                          <button
+                            onClick={() => {
+                              setShowProfileModal(true);
+                              setShowProfileMenu(false);
+                            }}
+                            className="p-1 text-gray-500 hover:text-cyan-400 transition-colors ml-2"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -680,17 +732,9 @@ export default function App() {
 
       {/* Leaderboard Modal */}
       {showLeaderboard && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="relative w-full max-w-md">
-            <button 
-              onClick={() => setShowLeaderboard(false)}
-              className="absolute -top-12 right-0 text-gray-400 hover:text-white transition-colors"
-            >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <Leaderboard provider={getUserProvider(user)} />
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black">
+          <div className="relative w-full h-full max-w-2xl mx-auto">
+            <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />
           </div>
         </div>
       )}
