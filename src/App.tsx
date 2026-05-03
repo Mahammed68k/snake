@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup, GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from 'firebase/auth';
 import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
@@ -51,20 +51,53 @@ export default function App() {
     if (!user) return;
     try {
       setSyncError(null);
+      const guestScoreRef = doc(db, 'leaderboard_guest', user.uid);
+      const guestScoreDoc = await getDoc(guestScoreRef);
+      const guestData = guestScoreDoc.exists() ? guestScoreDoc.data() : null;
+
       const authProvider = provider === 'google' ? googleProvider : facebookProvider;
-      await linkWithPopup(user, authProvider);
+      let targetUid = user.uid;
+
+      try {
+        await linkWithPopup(user, authProvider);
+      } catch (linkError: any) {
+        const errString = typeof linkError === 'string' ? linkError : (linkError?.message || '');
+        if (linkError?.code === 'auth/credential-already-in-use' || errString.includes('credential-already-in-use')) {
+          // The account exists, simply sign in with it popup
+          import('firebase/auth').then(async ({ signInWithPopup }) => {
+            try {
+              const result = await signInWithPopup(auth, authProvider);
+              targetUid = result.user.uid;
+              localStorage.setItem('authProvider', provider);
+              
+              if (guestData) {
+                const newScoreRef = doc(db, `leaderboard_${provider}`, targetUid);
+                const newScoreDoc = await getDoc(newScoreRef);
+                if (!newScoreDoc.exists() || guestData.score > newScoreDoc.data().score) {
+                  await setDoc(newScoreRef, {
+                    ...guestData,
+                    timestamp: serverTimestamp()
+                  }, { merge: true });
+                }
+              }
+              
+              setShowProfileMenu(false);
+            } catch (innerErr: any) {
+               console.error('Inner sign in error:', innerErr);
+               setSyncError(innerErr.message || 'Failed to sign in.');
+            }
+          });
+          return; // Early return since we handled async inside then()
+        } else {
+          throw linkError;
+        }
+      }
       
       localStorage.setItem('authProvider', provider);
       
-      // Sync the high score from guest to the new provider
-      const guestScoreRef = doc(db, 'leaderboard_guest', user.uid);
-      const guestScoreDoc = await getDoc(guestScoreRef);
-      
-      if (guestScoreDoc.exists()) {
-        const newScoreRef = doc(db, `leaderboard_${provider}`, user.uid);
+      if (guestData) {
+        const newScoreRef = doc(db, `leaderboard_${provider}`, targetUid);
         const newScoreDoc = await getDoc(newScoreRef);
-        
-        const guestData = guestScoreDoc.data();
         
         if (!newScoreDoc.exists() || guestData.score > newScoreDoc.data().score) {
           await setDoc(newScoreRef, {
@@ -77,13 +110,19 @@ export default function App() {
       // Success! The user state will update automatically via onAuthStateChanged
       setShowProfileMenu(false);
     } catch (error: any) {
-      console.error('Sync error:', error);
-      if (error.code === 'auth/credential-already-in-use') {
-        setSyncError('This account is already linked to another user.');
-      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        // Silently ignore
+      const errString = typeof error === 'string' ? error : (error?.message || '');
+      const isPopupClosed = error?.code === 'auth/popup-closed-by-user' || 
+                            error?.code === 'auth/cancelled-popup-request' ||
+                            errString.includes('popup-closed-by-user') ||
+                            errString.includes('cancelled-popup-request');
+
+      if (isPopupClosed) {
+        setSyncError(null);
         return;
-      } else if (error.code === 'auth/popup-blocked') {
+      }
+      
+      console.error('Sync error:', error);
+      if (error?.code === 'auth/popup-blocked' || errString.includes('popup-blocked')) {
         setSyncError('Popup blocked. Please allow popups.');
       } else if (error.code === 'auth/web-storage-unsupported' || error.code === 'auth/third-party-auth-error') {
         setSyncError('Third-party cookies are blocked. Please enable them.');
@@ -168,8 +207,12 @@ export default function App() {
   useEffect(() => {
     const handleProfileUpdate = () => {
       if (auth.currentUser) {
-        setUser({ ...auth.currentUser } as User);
+        // We can't spread auth.currentUser as it removes class methods like getIdToken
+        // Instead, we set a new copy of the reference using Object.assign or just update a tick
+        setUser(auth.currentUser);
         setNewName(auth.currentUser.displayName || '');
+        // Force re-render trick if same object ref (it usually is)
+        setScore(s => s); 
       }
     };
     window.addEventListener('profileUpdated', handleProfileUpdate);
@@ -251,7 +294,8 @@ export default function App() {
       }
       
       // Update local state
-      setUser({ ...auth.currentUser } as User);
+      setUser(auth.currentUser);
+      window.dispatchEvent(new Event('profileUpdated')); // Optional event to trigger re-renders
       setShowProfileModal(false);
     } catch (error: any) {
       if (error.code === 'permission-denied') {
@@ -478,15 +522,6 @@ export default function App() {
                             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                           </svg>
                           Link Facebook
-                        </button>
-                        <button
-                          onClick={() => handleSyncAccount('playgames')}
-                          className="w-full flex items-center gap-3 px-2 py-1.5 text-[10px] text-gray-300 hover:bg-white/5 hover:text-white rounded-lg transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5 text-[#34A853]" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20.2,11.3L5.4,2.7C4.8,2.4,4.2,2.8,4.2,3.5v17.1c0,0.7,0.6,1.1,1.2,0.8l14.8-8.6C20.8,12.5,20.8,11.6,20.2,11.3z M10.4,14.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,14.1,11,14.6,10.4,14.6z M10.4,11.6 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C11.5,11.1,11,11.6,10.4,11.6z M13.4,12.8 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,12.3,14,12.8,13.4,12.8z M13.4,16.4 c-0.6,0-1.1-0.5-1.1-1.1c0-0.6,0.5-1.1,1.1-1.1c0.6,0,1.1,0.5,1.1,1.1C14.5,15.9,14,16.4,13.4,16.4z"/>
-                          </svg>
-                          Link Play Games
                         </button>
                         {syncError && (
                           <p className="px-2 py-1 text-[8px] text-red-500 leading-tight">{syncError}</p>
