@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { auth } from '../firebase';
 
 const INITIAL_DIRECTION = { x: 0, y: -1 };
 
@@ -57,7 +58,8 @@ export default function SnakeGame({
   }, [isPaused]);
   const [justAte, setJustAte] = useState<boolean>(false);
   const [canRevive, setCanRevive] = useState<boolean>(() => {
-    const lastRevive = localStorage.getItem('lastReviveDate');
+    const key = `lastReviveDate_${auth.currentUser?.uid || 'guest'}`;
+    const lastRevive = localStorage.getItem(key);
     return lastRevive !== new Date().toDateString();
   });
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -295,7 +297,8 @@ export default function SnakeGame({
   };
 
   const continueGame = () => {
-    localStorage.setItem('lastReviveDate', new Date().toDateString());
+    const key = `lastReviveDate_${auth.currentUser?.uid || 'guest'}`;
+    localStorage.setItem(key, new Date().toDateString());
     setCanRevive(false);
     
     const initialSnake = [
