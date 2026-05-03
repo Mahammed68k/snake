@@ -57,7 +57,7 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
                     : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
                 }`}
               >
-                {t}
+                {t === 'cyber' ? 'Default' : t}
               </button>
             ))}
           </div>

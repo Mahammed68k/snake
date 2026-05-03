@@ -733,7 +733,7 @@ export default function SnakeGame({
               transition={{ delay: 0.3 }}
               className="flex flex-col items-center gap-2 mb-6"
             >
-              <p className="text-xl text-cyan-300">Final Score: {score}</p>
+              <p className="text-xl text-cyan-300">Score: {score}</p>
               <p className="text-sm text-fuchsia-400 uppercase tracking-widest">High Score: {Math.max(score, highScore)}</p>
             </motion.div>
             <motion.div 
