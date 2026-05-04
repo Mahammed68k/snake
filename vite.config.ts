@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'masked-icon.svg'],
+        includeAssets: ['icon.png', 'favicon.ico', 'masked-icon.svg'],
         manifest: {
           name: 'Snake Game MK Edition',
           short_name: 'Snake MK',
@@ -22,17 +22,17 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: '/image.png',
+              src: '/icon.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: '/image.png',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png'
             },
             {
-              src: '/image.png',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any maskable'

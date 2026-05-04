@@ -1,5 +1,6 @@
 {
-  "name": "Snake Game",
-  "description": "A dark aesthetic web app featuring a classic Snake game.",
-  "requestFramePermissions": []
+  "name": "Snake",
+  "description": "A high-performance classic Snake game with a custom tech aesthetic, global leaderboards, and smooth PWA support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }
