@@ -386,31 +386,30 @@ export default function App() {
   const handleGameOver = async (finalScore: number) => {
     if (!user || finalScore === 0) return;
     
-    const provider = getUserProvider(user);
-    const collectionName = `leaderboard_${provider}`;
-    const path = `${collectionName}/${user.uid}`;
-    try {
+    // Only update if new score is higher than current local high score
+    // This allows instant local UI updates (zero lag) while writing to DB in background
+    if (finalScore > highScore) {
+      const provider = getUserProvider(user);
+      const collectionName = `leaderboard_${provider}`;
+      const path = `${collectionName}/${user.uid}`;
       const scoreRef = doc(db, collectionName, user.uid);
-      const scoreDoc = await getDoc(scoreRef);
       
       const displayName = user.displayName || (user.isAnonymous 
         ? 'Anonymous' 
         : (user.email?.split('@')[0] || 'Anonymous'));
 
-      if (!scoreDoc.exists() || finalScore > scoreDoc.data().score) {
-        await setDoc(scoreRef, {
-          userId: user.uid,
-          displayName,
-          photoURL: getPhotoURL(user),
-          score: finalScore,
-          timestamp: serverTimestamp()
-        }, { merge: true });
-      }
-    } catch (error: any) {
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, path);
-      }
-      console.error("Error saving score:", error);
+      setDoc(scoreRef, {
+        userId: user.uid,
+        displayName,
+        photoURL: getPhotoURL(user),
+        score: finalScore,
+        timestamp: serverTimestamp()
+      }, { merge: true }).catch((error: any) => {
+        if (error.code === 'permission-denied') {
+          handleFirestoreError(error, OperationType.WRITE, path);
+        }
+        console.error("Error saving score:", error);
+      });
     }
   };
 
@@ -435,7 +434,7 @@ export default function App() {
 
   if (showIntro) {
     return (
-      <div className="h-screen w-screen bg-[#050505] relative overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+      <div className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
         <AnimatePresence mode="wait">
           <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
         </AnimatePresence>
@@ -445,7 +444,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <div className="fixed inset-0 h-[100dvh] bg-[#050505] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -460,7 +459,7 @@ export default function App() {
   const scoreLabelText = `${providerDisplayName} Score`;
 
   return (
-    <div className="h-screen w-screen bg-[#050505] relative overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+    <div className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
       {/* Floating Header / HUD - Hidden in Full Screen */}
       {!isFullScreen && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
@@ -556,7 +555,7 @@ export default function App() {
 
                   {user.isAnonymous && (
                     <div className="mt-2 pt-2 border-t border-white/5">
-                      <p className="px-3 py-1 text-[9px] text-fuchsia-400 uppercase tracking-widest font-bold">Sync Progress</p>
+                      <p className="px-3 py-1 text-[9px] text-fuchsia-400 uppercase tracking-widest font-bold">🔗 Bind Account</p>
                       <div className="flex flex-row gap-1 p-1">
                         <button
                           onClick={() => handleSyncAccount('google')}
@@ -676,6 +675,7 @@ export default function App() {
                 gridSize={settings.gridSize}
                 speed={settings.speed}
                 theme={settings.theme}
+                userId={user.uid}
               />
             </motion.div>
           ) : (
@@ -731,13 +731,13 @@ export default function App() {
       )}
 
       {/* Leaderboard Modal */}
-      {showLeaderboard && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black">
-          <div className="relative w-full h-full max-w-2xl mx-auto">
-            <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />
-          </div>
+      <div 
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-black transition-opacity duration-200 ${showLeaderboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      >
+        <div className="relative w-full h-[100dvh] max-w-2xl mx-auto flex flex-col">
+          {user && <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />}
         </div>
-      )}
+      </div>
 
       {/* Profile Edit Modal */}
       {showProfileModal && (

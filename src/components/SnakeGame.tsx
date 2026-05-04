@@ -21,6 +21,7 @@ interface SnakeGameProps {
   gridSize: number;
   speed: number;
   theme: 'cyber' | 'plasma';
+  userId: string;
 }
 
 export default function SnakeGame({ 
@@ -33,7 +34,8 @@ export default function SnakeGame({
   isFullScreen,
   gridSize,
   speed,
-  theme
+  theme,
+  userId
 }: SnakeGameProps) {
   const [snake, setSnake] = useState<Point[]>([
     { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
@@ -58,9 +60,13 @@ export default function SnakeGame({
   }, [isPaused]);
   const [justAte, setJustAte] = useState<boolean>(false);
   const [canRevive, setCanRevive] = useState<boolean>(() => {
-    const key = `lastReviveDate_${auth.currentUser?.uid || 'guest'}`;
-    const lastRevive = localStorage.getItem(key);
-    return lastRevive !== new Date().toDateString();
+    try {
+      const key = `lastReviveDate_${userId}`;
+      const lastRevive = localStorage.getItem(key);
+      return lastRevive !== new Date().toDateString();
+    } catch {
+      return true;
+    }
   });
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
@@ -297,16 +303,35 @@ export default function SnakeGame({
   };
 
   const continueGame = () => {
-    const key = `lastReviveDate_${auth.currentUser?.uid || 'guest'}`;
-    localStorage.setItem(key, new Date().toDateString());
+    try {
+      const key = `lastReviveDate_${userId}`;
+      localStorage.setItem(key, new Date().toDateString());
+    } catch (e) {
+      console.warn("Could not save revive state", e);
+    }
     setCanRevive(false);
     
-    const initialSnake = [
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) },
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 1 },
-      { x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) + 2 },
-    ];
-    setSnake(initialSnake);
+    const targetLength = 3 + Math.floor(score / 10);
+    const continuedSnake = [];
+    let cx = Math.floor(gridSize / 2);
+    let cy = Math.floor(gridSize / 2);
+    let dy = 1;
+
+    for (let i = 0; i < targetLength; i++) {
+      continuedSnake.push({ x: cx, y: cy });
+      cy += dy;
+      if (cy >= gridSize) {
+        cy = gridSize - 1;
+        cx = (cx + 1) % gridSize;
+        dy = -1;
+      } else if (cy < 0) {
+        cy = 0;
+        cx = (cx + 1) % gridSize;
+        dy = 1;
+      }
+    }
+
+    setSnake(continuedSnake);
     setDirection(INITIAL_DIRECTION);
     inputQueueRef.current = [];
     lastExecutedDirectionRef.current = INITIAL_DIRECTION;
@@ -316,10 +341,10 @@ export default function SnakeGame({
     setIsPaused(true); // Pause to let player get ready
     
     const obstacleCount = Math.floor((gridSize * gridSize) / 50);
-    const newObstacles = generateObstacles(initialSnake, obstacleCount);
+    const newObstacles = generateObstacles(continuedSnake, obstacleCount);
     setObstacles(newObstacles);
     
-    setFood(generateFood(initialSnake, newObstacles));
+    setFood(generateFood(continuedSnake, newObstacles));
   };
 
   useEffect(() => {
@@ -423,6 +448,15 @@ export default function SnakeGame({
         )
       ) {
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+        
+        try {
+          const key = `lastReviveDate_${userId}`;
+          const lastRevive = localStorage.getItem(key);
+          setCanRevive(lastRevive !== new Date().toDateString());
+        } catch {
+          setCanRevive(true);
+        }
+        
         setGameOver(true);
         onGameOver?.(score);
         return;
@@ -737,7 +771,6 @@ export default function SnakeGame({
               className="flex flex-col items-center gap-2 mb-6"
             >
               <p className="text-xl text-cyan-300">Score: {score}</p>
-              <p className="text-sm text-fuchsia-400 uppercase tracking-widest">High Score: {Math.max(score, highScore)}</p>
             </motion.div>
             <motion.div 
               initial={{ y: 20, opacity: 0 }}

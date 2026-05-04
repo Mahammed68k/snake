@@ -9,7 +9,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 2500);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -23,7 +23,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
       <motion.p
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.8, duration: 0.5 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
         className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80"
       >
         MK EDITION
@@ -32,7 +32,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
       <motion.div 
         initial={{ scaleX: 0 }}
         animate={{ scaleX: 1 }}
-        transition={{ delay: 1.2, duration: 1, ease: "easeInOut" }}
+        transition={{ delay: 0.6, duration: 0.7, ease: "easeInOut" }}
         className="h-1 w-48 md:w-64 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mt-8"
       />
     </motion.div>

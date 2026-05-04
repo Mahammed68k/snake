@@ -81,7 +81,7 @@ export default function Leaderboard({ provider, onClose }: LeaderboardProps) {
         <div className="absolute top-[70%] left-[30%] w-4 h-3 bg-cyan-300/80 rounded-sm rotate-[60deg]"></div>
       </div>
 
-      <div className="relative pt-16 px-8 pb-6 flex flex-col shrink-0">
+      <div className="relative pt-12 sm:pt-16 px-4 sm:px-8 pb-6 flex flex-col shrink-0">
         {onClose && (
           <button 
             onClick={onClose}
@@ -94,20 +94,20 @@ export default function Leaderboard({ provider, onClose }: LeaderboardProps) {
         {scores.length > 0 && (
           <div className="flex items-center mb-6 pl-2">
             <div className="flex items-center relative z-20">
-              <span className="text-white font-black text-[2.5rem] leading-none drop-shadow-md mr-3">1<sup className="text-xl">ST</sup></span>
-              <div className="w-28 h-28 rounded-full overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.3)] bg-[#b6e3f4] ring-4 ring-[#2e2671]">
+              <span className="text-white font-black text-3xl md:text-[2.5rem] leading-none drop-shadow-md mr-2 md:mr-3">1<sup className="text-lg md:text-xl">ST</sup></span>
+              <div className="w-20 h-20 md:w-28 md:h-28 rounded-full overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.3)] bg-[#b6e3f4] ring-4 ring-[#2e2671] shrink-0">
                  <img src={getHighResPhoto(scores[0]?.photoURL) || getAvatarUrl(scores[0]?.displayName || 'Top', 0)} alt="1st" className={`w-full h-full object-cover ${!scores[0]?.photoURL ? 'scale-110 mt-2' : ''}`} />
               </div>
             </div>
             
-            <div className="flex -ml-4 z-10">
+            <div className="flex -ml-4 z-10 shrink-0">
               {scores[1] && (
-                <div className="w-[4.2rem] h-[4.2rem] rounded-full overflow-hidden shadow-lg border-[3px] border-[#2e2671] bg-[#c0aede] relative top-2">
+                <div className="w-[3.5rem] h-[3.5rem] md:w-[4.2rem] md:h-[4.2rem] rounded-full overflow-hidden shadow-lg border-[3px] border-[#2e2671] bg-[#c0aede] relative top-2">
                   <img src={getHighResPhoto(scores[1]?.photoURL) || getAvatarUrl(scores[1]?.displayName || '2nd', 1)} alt="2nd" className={`w-full h-full object-cover ${!scores[1]?.photoURL ? 'scale-110 mt-1' : ''}`} />
                 </div>
               )}
               {scores[2] && (
-                <div className="w-[4.2rem] h-[4.2rem] rounded-full overflow-hidden shadow-lg border-[3px] border-[#2e2671] bg-[#ffdfbf] -ml-3 relative -top-3">
+                <div className="w-[3.5rem] h-[3.5rem] md:w-[4.2rem] md:h-[4.2rem] rounded-full overflow-hidden shadow-lg border-[3px] border-[#2e2671] bg-[#ffdfbf] -ml-3 relative -top-3">
                   <img src={getHighResPhoto(scores[2]?.photoURL) || getAvatarUrl(scores[2]?.displayName || '3rd', 2)} alt="3rd" className={`w-full h-full object-cover ${!scores[2]?.photoURL ? 'scale-110 mt-1' : ''}`} />
                 </div>
               )}
