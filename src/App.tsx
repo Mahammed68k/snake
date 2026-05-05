@@ -205,6 +205,16 @@ export default function App() {
       
       if (currentUser) {
         setNewName(currentUser.displayName || '');
+
+        // Update local cache for Login screen personalization
+        if (!currentUser.isAnonymous) {
+          const profile = {
+            name: currentUser.displayName || 'Player',
+            email: currentUser.email || '',
+            photo: getPhotoURL(currentUser)
+          };
+          localStorage.setItem('last_user_profile', JSON.stringify(profile));
+        }
         
         // Fetch high score from Firestore based on provider asynchronously
         const fetchHighScore = async () => {
@@ -439,7 +449,7 @@ export default function App() {
     return (
       <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
         <AnimatePresence mode="wait">
-          <Suspense fallback={<div className="text-cyan-500">Loading...</div>}>
+          <Suspense fallback={null}>
             <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
           </Suspense>
         </AnimatePresence>
@@ -665,7 +675,7 @@ export default function App() {
       {/* Game Area - Full Screen Centered */}
       <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12 landscape:p-2'}`}>
         <AnimatePresence mode="wait">
-          <Suspense fallback={<div className="text-cyan-500">Loading Game...</div>}>
+          <Suspense fallback={null}>
             {gameState === 'playing' ? (
               <motion.div 
                 key="playing"
@@ -748,7 +758,7 @@ export default function App() {
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black transition-opacity duration-200 ${showLeaderboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
         <div className="relative w-full h-[100dvh] max-w-2xl mx-auto flex flex-col">
-          <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500">Loading Leaderboard...</div>}>
+          <Suspense fallback={null}>
             {showLeaderboard && user && <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />}
           </Suspense>
         </div>
@@ -759,7 +769,7 @@ export default function App() {
         {showSettings && (
           <SettingsModal 
             settings={settings} 
-            onChange={setSettings} 
+            onUpdate={setSettings} 
             onClose={() => setShowSettings(false)} 
           />
         )}

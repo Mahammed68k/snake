@@ -68,6 +68,8 @@ export default function SnakeGame({
       return true;
     }
   });
+  const [hasUsedReviveInSession, setHasUsedReviveInSession] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   });
@@ -306,13 +308,18 @@ export default function SnakeGame({
   };
 
   const continueGame = () => {
+    if (isContinuing || hasUsedReviveInSession) return;
+    setIsContinuing(true);
+    
     try {
       const key = `lastReviveDate_${userId}`;
       localStorage.setItem(key, new Date().toDateString());
     } catch (e) {
       console.warn("Could not save revive state", e);
     }
+    
     setCanRevive(false);
+    setHasUsedReviveInSession(true);
     
     const targetLength = 3 + Math.floor(score / 10);
     const continuedSnake = [];
@@ -342,6 +349,7 @@ export default function SnakeGame({
     // Keep score, just reset position and obstacles
     setGameOver(false);
     setIsPaused(true); // Pause to let player get ready
+    setIsContinuing(false);
     
     const obstacleCount = Math.floor((gridSize * gridSize) / 50);
     const newObstacles = generateObstacles(continuedSnake, obstacleCount);
@@ -455,9 +463,10 @@ export default function SnakeGame({
         try {
           const key = `lastReviveDate_${userId}`;
           const lastRevive = localStorage.getItem(key);
-          setCanRevive(lastRevive !== new Date().toDateString());
+          const isNextDay = lastRevive !== new Date().toDateString();
+          setCanRevive(isNextDay && !hasUsedReviveInSession);
         } catch {
-          setCanRevive(true);
+          setCanRevive(!hasUsedReviveInSession);
         }
         
         setGameOver(true);
@@ -780,18 +789,19 @@ export default function SnakeGame({
               transition={{ delay: 0.4 }}
               className="flex flex-col gap-3 w-full max-w-[250px] relative z-[110]"
             >
-              {canRevive && (
+              {canRevive && !hasUsedReviveInSession && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  disabled={isContinuing}
                   animate={{ 
                     boxShadow: ["0 0 15px rgba(34,197,94,0.6)", "0 0 25px rgba(34,197,94,0.9)", "0 0 15px rgba(34,197,94,0.6)"] 
                   }}
                   transition={{ repeat: Infinity, duration: 2 }}
                   onClick={continueGame}
-                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-colors flex flex-col items-center justify-center leading-tight"
+                  className={`w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-colors flex flex-col items-center justify-center leading-tight ${isContinuing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <span>CONTINUE</span>
+                  <span>{isContinuing ? 'PREPARING...' : 'CONTINUE'}</span>
                   <span className="text-[10px] uppercase tracking-widest text-green-100 font-bold">1 Chance Today</span>
                 </motion.button>
               )}
