@@ -155,12 +155,12 @@ export default function Login() {
   };
 
   return (
-    <div className="fixed inset-0 min-h-[100dvh] bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 font-sans overflow-y-auto">
+    <main className="fixed inset-0 min-h-[100dvh] bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 font-sans overflow-y-auto">
       <div className="z-10 bg-black/50 border border-cyan-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(6,182,212,0.2)] backdrop-blur-md w-full max-w-md flex flex-col items-center">
         <h1 className="text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] tracking-wider mb-2">
           SNAKE
         </h1>
-        <p className="text-cyan-300 font-display tracking-widest text-sm mb-8 opacity-80">
+        <p className="text-white font-display font-bold tracking-widest text-sm mb-8 drop-shadow-sm">
           MK EDITION
         </p>
 
@@ -175,6 +175,7 @@ export default function Login() {
             <>
               <button
                 onClick={handleGoogleLogin}
+                aria-label="Sign in with Google"
                 disabled={loadingProvider !== null && loadingProvider !== 'google'}
                 className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-all hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -193,6 +194,7 @@ export default function Login() {
 
               <button
                 onClick={handleFacebookLogin}
+                aria-label="Sign in with Facebook"
                 disabled={loadingProvider !== null && loadingProvider !== 'facebook'}
                 className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 rounded-xl text-white font-medium transition-all hover:border-[#1877F2]/60 hover:shadow-[0_0_15px_rgba(24,119,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -207,9 +209,9 @@ export default function Login() {
               </button>
 
               <div className="flex items-center gap-4 my-2">
-                <div className="flex-1 h-px bg-white/10"></div>
-                <span className="text-gray-500 text-[10px] uppercase tracking-widest">or</span>
-                <div className="flex-1 h-px bg-white/10"></div>
+                <div className="flex-1 h-px bg-white/20"></div>
+                <span className="text-white text-[11px] uppercase tracking-widest font-black">or</span>
+                <div className="flex-1 h-px bg-white/20"></div>
               </div>
             </>
           )}
@@ -226,7 +228,7 @@ export default function Login() {
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="Min 4 chars, 1 uppercase, 1 lowercase, 1 number..."
-                  className="w-full bg-black/50 border border-cyan-500/30 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+                  className="w-full bg-black/50 border border-cyan-500/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
                   autoFocus
                   minLength={4}
                   maxLength={20}
@@ -261,6 +263,7 @@ export default function Login() {
           ) : (
             <button
               onClick={handleGuestLogin}
+              aria-label="Play as Guest"
               disabled={loadingProvider !== null && loadingProvider !== 'guest'}
               className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl text-cyan-400 font-medium transition-all hover:border-cyan-500/60 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -275,14 +278,14 @@ export default function Login() {
             </button>
           )}
 
-          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-500">
-            <a href="/privacy.html" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
-            <span>&bull;</span>
-            <a href="/terms.html" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
+          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-white font-bold">
+            <a href="/privacy.html" className="hover:text-cyan-400 underline transition-colors underline-offset-4">Privacy Policy</a>
+            <span aria-hidden="true" className="opacity-50">&bull;</span>
+            <a href="/terms.html" className="hover:text-cyan-400 underline transition-colors underline-offset-4">Terms of Service</a>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

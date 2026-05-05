@@ -163,6 +163,9 @@ export default function SnakeGame({
           x: e.changedTouches[0].clientX,
           y: e.changedTouches[0].clientY,
         };
+        
+        // We can use a ref to cache the rect on resize/scroll if needed, 
+        // but for a full-screen game, a relative center check is usually stable.
         const rect = container.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
@@ -668,27 +671,26 @@ export default function SnakeGame({
           );
 
           return (
-            <motion.div
-              key={`segment-${index}`}
-              layout
-              initial={false}
-              animate={{
-                left: `${segment.x * cellSize}%`,
-                top: `${segment.y * cellSize}%`,
-                scale: isHead && justAte ? 1.2 : segmentScale,
-              }}
-              transition={{
-                type: 'tween',
-                ease: 'linear',
-                duration: isWrapped ? 0 : speed / 1000,
-              }}
-              className="absolute flex items-center justify-center"
-              style={{
-                width: `${cellSize}%`,
-                height: `${cellSize}%`,
-                zIndex: isHead ? 20 : 10 - index,
-              }}
-            >
+              <motion.div
+                key={`segment-${index}`}
+                initial={false}
+                animate={{
+                  left: `${segment.x * cellSize}%`,
+                  top: `${segment.y * cellSize}%`,
+                  scale: isHead && justAte ? 1.2 : segmentScale,
+                }}
+                transition={{
+                  type: 'tween',
+                  ease: 'linear',
+                  duration: isWrapped ? 0 : speed / 1000,
+                }}
+                className="absolute flex items-center justify-center"
+                style={{
+                  width: `${cellSize}%`,
+                  height: `${cellSize}%`,
+                  zIndex: isHead ? 20 : 10 - index,
+                }}
+              >
               {isHead ? (
                 <div
                   className="w-full h-full rounded-t-full rounded-b-sm relative"
@@ -770,7 +772,7 @@ export default function SnakeGame({
               transition={{ delay: 0.3 }}
               className="flex flex-col items-center gap-2 mb-6"
             >
-              <p className="text-xl text-cyan-300">Score: {score}</p>
+              <p className="text-xl text-cyan-100 font-bold">Score: {score}</p>
             </motion.div>
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
@@ -790,7 +792,7 @@ export default function SnakeGame({
                   className="w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-colors flex flex-col items-center justify-center leading-tight"
                 >
                   <span>CONTINUE</span>
-                  <span className="text-[10px] uppercase tracking-widest opacity-80 font-normal">1 Chance Today</span>
+                  <span className="text-[10px] uppercase tracking-widest text-green-100 font-bold">1 Chance Today</span>
                 </motion.button>
               )}
               <motion.button

@@ -40,7 +40,7 @@ class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <h2 className="text-2xl font-display font-bold text-white mb-4 tracking-wider">SYSTEM MALFUNCTION</h2>
-            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
               {errorMessage}
             </p>
             <button

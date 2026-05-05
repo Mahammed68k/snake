@@ -29,7 +29,7 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
   return (
     <div className="bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)] w-full max-w-sm animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
       <div className="flex items-center justify-end mb-6">
-        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={onClose} aria-label="Close" className="text-white hover:text-cyan-400 transition-colors">
           <X size={24} />
         </button>
       </div>
@@ -54,7 +54,7 @@ export default function SettingsModal({ settings, onUpdate, onClose }: SettingsM
                     ? t === 'cyber'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
                       : 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-400 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                    : 'bg-black/40 border-gray-800 text-gray-500 hover:border-gray-700'
+                    : 'bg-black/40 border-gray-700 text-gray-300 hover:border-gray-600'
                 }`}
               >
                 {t === 'cyber' ? 'Default' : t}

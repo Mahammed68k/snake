@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://snake-291985648854.us-west1.run.app/sitemap.xml

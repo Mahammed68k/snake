@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup, GoogleAuthProvider, FacebookAuthProvider, signInWithCredential } from 'firebase/auth';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
 import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, X, Palette, MessageSquare } from 'lucide-react';
-import SnakeGame from './components/SnakeGame';
-import Login from './components/Login';
-import Leaderboard, { getAvatarUrl } from './components/Leaderboard';
-import SettingsModal from './components/SettingsModal';
-import IntroScreen from './components/IntroScreen';
+
+const SnakeGame = lazy(() => import('./components/SnakeGame'));
+const Login = lazy(() => import('./components/Login'));
+const Leaderboard = lazy(() => import('./components/Leaderboard'));
+const SettingsModal = lazy(() => import('./components/SettingsModal'));
+const IntroScreen = lazy(() => import('./components/IntroScreen'));
+
+import { getAvatarUrl } from './components/Leaderboard';
 
 interface GameSettings {
   gridSize: number;
@@ -434,24 +437,30 @@ export default function App() {
 
   if (showIntro) {
     return (
-      <div className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+      <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
         <AnimatePresence mode="wait">
-          <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
+          <Suspense fallback={<div className="text-cyan-500">Loading...</div>}>
+            <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
+          </Suspense>
         </AnimatePresence>
-      </div>
+      </main>
     );
   }
 
   if (loading) {
     return (
-      <div className="fixed inset-0 h-[100dvh] bg-[#050505] flex items-center justify-center">
+      <main className="fixed inset-0 h-[100dvh] bg-[#050505] flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      </main>
     );
   }
 
   if (!user) {
-    return <Login />;
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-[#050505]" />}>
+        <Login />
+      </Suspense>
+    );
   }
 
   const currentProvider = getUserProvider(user);
@@ -459,7 +468,7 @@ export default function App() {
   const scoreLabelText = `${providerDisplayName} Score`;
 
   return (
-    <div className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+    <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
       {/* Floating Header / HUD - Hidden in Full Screen */}
       {!isFullScreen && (
         <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
@@ -469,7 +478,7 @@ export default function App() {
                 <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
                   SNAKE
                 </h1>
-                <p className="text-cyan-300 font-display tracking-widest text-[10px] md:text-xs mt-0.5 opacity-80">
+                <p className="text-white font-display tracking-widest text-[10px] md:text-xs mt-0.5 drop-shadow-sm">
                   MK EDITION
                 </p>
               </>
@@ -509,9 +518,9 @@ export default function App() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Account</p>
+                      <p className="text-[10px] text-white uppercase tracking-widest font-black">Account</p>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs text-cyan-400 truncate font-mono">
+                        <p className="text-xs text-cyan-300 truncate font-mono">
                           {user.displayName || (user.isAnonymous ? 'Anonymous' : (user.email || 'User'))}
                         </p>
                         {!user.isAnonymous && (
@@ -520,7 +529,7 @@ export default function App() {
                               setShowProfileModal(true);
                               setShowProfileMenu(false);
                             }}
-                            className="p-1 text-gray-500 hover:text-cyan-400 transition-colors ml-2"
+                            className="p-1 text-gray-300 hover:text-cyan-400 transition-colors ml-2"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -604,20 +613,20 @@ export default function App() {
             <div className={`flex gap-2 md:gap-3 items-stretch ${isGameOver ? 'hidden' : ''}`}>
               {gameState === 'playing' && (
                 <>
-                  <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
-                    <p className="text-cyan-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-bold mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
-                    <p className="text-xl md:text-[30px] font-bold text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
+                  <div role="status" aria-label="Current Score" className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
+                    <p className="text-white text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-black mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
+                    <p className="text-xl md:text-[30px] font-bold text-cyan-100 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
                       {score.toString().padStart(4, '0')}
                     </p>
                   </div>
-                  <div className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
-                    <p className="text-fuchsia-500/60 text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-normal mb-0.5 md:mb-1 text-center leading-[15px] max-w-[100px] md:max-w-[120px] whitespace-normal md:whitespace-nowrap truncate" style={{ fontFamily: 'Times New Roman' }}>{scoreLabelText}</p>
+                  <div role="status" aria-label="High Score" className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
+                    <p className="text-white text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-black mb-0.5 md:mb-1 text-center leading-[15px] max-w-[100px] md:max-w-[120px] whitespace-normal md:whitespace-nowrap truncate" style={{ fontFamily: 'Times New Roman' }}>{scoreLabelText}</p>
                     <motion.p 
                       key={highScore}
                       initial={{ scale: 1.3, filter: 'brightness(1.5)' }}
                       animate={{ scale: 1, filter: 'brightness(1)' }}
                       transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-                      className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-400 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
+                      className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
                       style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}
                     >
                       {highScore.toString().padStart(4, '0')}
@@ -635,8 +644,8 @@ export default function App() {
         <div className="fixed top-6 right-6 z-50 flex items-center gap-4 animate-in fade-in duration-500">
           {gameState === 'playing' && (
             <div className="bg-black/60 border border-cyan-500/50 rounded-xl px-4 py-2 shadow-[0_0_20px_rgba(6,182,212,0.2)] backdrop-blur-md">
-              <p className="text-gray-400 text-[9px] uppercase tracking-widest mb-0.5">Score</p>
-              <p className="text-xl font-display font-bold text-cyan-400">
+              <p className="text-white text-[9px] uppercase tracking-widest mb-0.5 font-black">Score</p>
+              <p className="text-xl font-display font-bold text-white drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]">
                 {score.toString().padStart(4, '0')}
               </p>
             </div>
@@ -646,7 +655,7 @@ export default function App() {
             className="bg-black/60 border border-red-500/50 hover:bg-red-500/20 text-red-400 p-3 rounded-full transition-all active:scale-95 shadow-[0_0_20px_rgba(239,68,68,0.2)] backdrop-blur-md"
             title="Exit Full Screen (Esc)"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -656,70 +665,74 @@ export default function App() {
       {/* Game Area - Full Screen Centered */}
       <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12 landscape:p-2'}`}>
         <AnimatePresence mode="wait">
-          {gameState === 'playing' ? (
-            <motion.div 
-              key="playing"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full h-full flex items-center justify-center"
-            >
-              <SnakeGame 
-                onScoreChange={setScore} 
-                onGameOver={handleGameOver} 
-                onGameOverStateChange={setIsGameOver}
-                highScore={highScore} 
-                onShowLeaderboard={() => setShowLeaderboard(true)}
-                onReturnToMenu={() => setGameState('menu')}
-                isFullScreen={isFullScreen}
-                gridSize={settings.gridSize}
-                speed={settings.speed}
-                theme={settings.theme}
-                userId={user.uid}
-              />
-            </motion.div>
-          ) : (
-            <motion.div 
-              key="menu"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center justify-center gap-12"
-            >
+          <Suspense fallback={<div className="text-cyan-500">Loading Game...</div>}>
+            {gameState === 'playing' ? (
               <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="flex flex-col items-center"
+                key="playing"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="w-full h-full flex items-center justify-center"
               >
-                <h1 className="text-6xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.5)] tracking-wider mb-2">
-                  SNAKE
-                </h1>
-                <p className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80">
-                  MK EDITION
-                </p>
+                <SnakeGame 
+                  onScoreChange={setScore} 
+                  onGameOver={handleGameOver} 
+                  onGameOverStateChange={setIsGameOver}
+                  highScore={highScore} 
+                  onShowLeaderboard={() => setShowLeaderboard(true)}
+                  onReturnToMenu={() => setGameState('menu')}
+                  isFullScreen={isFullScreen}
+                  gridSize={settings.gridSize}
+                  speed={settings.speed}
+                  theme={settings.theme}
+                  userId={user.uid}
+                />
               </motion.div>
-              
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="flex flex-col gap-4 w-full max-w-[300px]"
+            ) : (
+              <motion.div 
+                key="menu"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex flex-col items-center justify-center gap-12"
               >
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="flex flex-col items-center"
+                >
+                  <h1 className="text-6xl md:text-8xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_20px_rgba(217,70,239,0.5)] tracking-wider mb-2">
+                    SNAKE
+                  </h1>
+                  <p className="text-cyan-200 font-display tracking-[0.5em] text-sm md:text-xl">
+                    MK EDITION
+                  </p>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex flex-col gap-4 w-full max-w-[300px]"
+                >
                 <button
                   onClick={handlePlayGame}
+                  aria-label="Start playing the game"
                   className="w-full px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xl rounded-full transition-all shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:shadow-[0_0_35px_rgba(6,182,212,0.8)] hover:scale-105 active:scale-95"
                 >
                   PLAY GAME
                 </button>
                 <button
                   onClick={() => setShowLeaderboard(true)}
-                  className="w-full px-8 py-4 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold text-xl rounded-full transition-all hover:scale-105 active:scale-95"
+                  aria-label="Open global leaderboard"
+                  className="w-full px-8 py-4 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-300 border border-fuchsia-500/50 font-bold text-xl rounded-full transition-all hover:scale-105 active:scale-95"
                 >
                   LEADERBOARD
                 </button>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
+            )}
+          </Suspense>
         </AnimatePresence>
       </main>
 
@@ -735,9 +748,22 @@ export default function App() {
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black transition-opacity duration-200 ${showLeaderboard ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
       >
         <div className="relative w-full h-[100dvh] max-w-2xl mx-auto flex flex-col">
-          {user && <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />}
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-cyan-500">Loading Leaderboard...</div>}>
+            {showLeaderboard && user && <Leaderboard provider={getUserProvider(user)} onClose={() => setShowLeaderboard(false)} />}
+          </Suspense>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <Suspense fallback={null}>
+        {showSettings && (
+          <SettingsModal 
+            settings={settings} 
+            onChange={setSettings} 
+            onClose={() => setShowSettings(false)} 
+          />
+        )}
+      </Suspense>
 
       {/* Profile Edit Modal */}
       {showProfileModal && (
@@ -745,9 +771,10 @@ export default function App() {
           <div className="relative w-full max-w-sm bg-black/90 border border-cyan-500/30 rounded-2xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.2)]">
             <button 
               onClick={() => setShowProfileModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+              aria-label="Close modal"
+              className="absolute top-4 right-4 text-gray-300 hover:text-white transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg aria-hidden="true" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -757,8 +784,8 @@ export default function App() {
             </h2>
             
             <form onSubmit={handleUpdateName} className="space-y-4">
-              <div>
-                <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Display Name</label>
+            <div>
+                <label className="block text-[10px] text-white uppercase tracking-widest mb-1.5 ml-1 font-black">Display Name</label>
                 <input 
                   type="text"
                   value={newName}
@@ -767,13 +794,13 @@ export default function App() {
                     setNameError(null);
                   }}
                   placeholder="Min 4 chars, 1 uppercase, 1 lowercase, 1 number..."
-                  className={`w-full bg-white/5 border ${nameError ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-700`}
+                  className={`w-full bg-white/5 border ${nameError ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-gray-500`}
                   minLength={user?.isAnonymous ? 4 : undefined}
                   maxLength={20}
                   required
                 />
                 {nameError && (
-                  <p className="text-red-400 text-xs mt-2 ml-1">{nameError}</p>
+                  <p className="text-red-400 text-xs mt-2 ml-1 font-medium">{nameError}</p>
                 )}
               </div>
 
@@ -838,7 +865,7 @@ export default function App() {
                           <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-sm">D</div>
                         </div>
                       </div>
-                      <span className="text-cyan-500/50 text-xs font-bold uppercase">or</span>
+                      <span className="text-cyan-400 text-xs font-bold uppercase">or</span>
                       {/* Arrows */}
                       <div className="flex flex-col items-center gap-1">
                         <div className="w-8 h-8 rounded bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50 text-cyan-400 font-bold text-lg">↑</div>
@@ -898,7 +925,7 @@ export default function App() {
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
           <div className="bg-[#111] border border-cyan-500/30 rounded-2xl p-6 w-full max-w-md shadow-[0_0_50px_rgba(6,182,212,0.15)]">
             <h2 className="text-2xl font-display font-bold text-cyan-400 mb-2">Help & Feedback</h2>
-            <p className="text-gray-400 text-sm mb-6">
+            <p className="text-gray-200 text-sm mb-6">
               Are you frustrated with something? Have an idea to improve the game? Let us know!
             </p>
             
@@ -947,6 +974,6 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

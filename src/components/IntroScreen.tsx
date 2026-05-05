@@ -14,17 +14,14 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
   }, [onComplete]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <main
       className="flex flex-col items-center justify-center w-full h-full"
     >
       <motion.p
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3, duration: 0.4 }}
-        className="text-cyan-300 font-display tracking-[0.5em] text-sm md:text-xl opacity-80"
+        className="text-white font-display tracking-[0.5em] text-sm md:text-xl font-bold"
       >
         MK EDITION
       </motion.p>
@@ -35,6 +32,6 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
         transition={{ delay: 0.6, duration: 0.7, ease: "easeInOut" }}
         className="h-1 w-48 md:w-64 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mt-8"
       />
-    </motion.div>
+    </main>
   );
 }
