@@ -14,7 +14,7 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['snake-logo-final.png', 'favicon.ico', 'masked-icon.svg'],
         manifest: {
-          name: 'Snake MK Edition',
+          name: 'Snake',
           short_name: 'Snake',
           description: 'A classic snake game with global leaderboards',
           theme_color: '#06b6d4',

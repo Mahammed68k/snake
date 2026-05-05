@@ -16,7 +16,7 @@ export default function TermsOfService() {
         <div className="space-y-6 text-sm leading-relaxed">
           <section>
             <h2 className="text-xl font-bold text-fuchsia-400 mb-2">1. Agreement to Terms</h2>
-            <p>By accessing or playing Snake MK Edition ("the Game"), you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the Game.</p>
+            <p>By accessing or playing Snake ("the Game"), you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the Game.</p>
           </section>
 
           <section>

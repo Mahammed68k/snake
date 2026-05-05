@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
         <div className="space-y-6 text-sm leading-relaxed">
           <section>
             <h2 className="text-xl font-bold text-fuchsia-400 mb-2">1. Introduction</h2>
-            <p>Welcome to Snake MK Edition ("we," "our," or "us"). We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains what information we collect, how we use it, and how we protect it when you play our game.</p>
+            <p>Welcome to Snake ("we," "our," or "us"). We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains what information we collect, how we use it, and how we protect it when you play our game.</p>
           </section>
 
           <section>
