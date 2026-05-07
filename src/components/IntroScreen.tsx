@@ -36,7 +36,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
           initial={{ opacity: 0, letterSpacing: "0em", scale: 0.95 }}
           animate={{ opacity: 1, letterSpacing: "0.2em", scale: 1 }}
           transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
-          className="text-white font-display text-2xl md:text-4xl lg:text-5xl font-normal drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] ml-3 md:ml-4"
+          className="text-yellow-100 font-display text-2xl md:text-4xl lg:text-5xl font-black uppercase drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)] ml-3 md:ml-4 whitespace-nowrap"
         >
           MK EDITION
         </motion.p>
@@ -46,7 +46,7 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 1 }}
           transition={{ duration: 1.2, ease: "easeInOut", delay: 1.2 }}
-          className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-white/40 to-transparent mt-8 origin-center"
+          className="h-[2px] w-32 md:w-48 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mt-8 origin-center drop-shadow-md"
         />
 
       </div>
