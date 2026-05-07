@@ -55,6 +55,8 @@ export default function SnakeGame({
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const isPausedRef = useRef<boolean>(false);
+  const forceTickRef = useRef<boolean>(false);
+
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -148,6 +150,7 @@ export default function SnakeGame({
             if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
               if (queue.length < 4) { // Increased queue size
                 queue.push(newDir);
+                forceTickRef.current = true;
               }
             }
           }
@@ -207,6 +210,7 @@ export default function SnakeGame({
     if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
       if (queue.length < 4) {
         queue.push(newDir);
+        forceTickRef.current = true;
       }
     }
     setIsPaused(false);
@@ -410,6 +414,7 @@ export default function SnakeGame({
         if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
           if (queue.length < 4) {
             queue.push(newDir);
+            forceTickRef.current = true;
           }
         }
       }
@@ -419,109 +424,158 @@ export default function SnakeGame({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameOver]);
 
+  const lastMoveTimeRef = useRef<number>(0);
+  const snakeRef = useRef<Point[]>(snake);
+  const foodRef = useRef<Point[]>([]); // Using an array for consistency
+  const scoreRef = useRef<number>(score);
+
+  useEffect(() => {
+    snakeRef.current = snake;
+  }, [snake]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    foodRef.current = [food];
+  }, [food]);
+
+  const moveSnake = useCallback(() => {
+    let nextDir = lastExecutedDirectionRef.current;
+    if (inputQueueRef.current.length > 0) {
+      nextDir = inputQueueRef.current.shift()!;
+      lastExecutedDirectionRef.current = nextDir;
+      setDirection(nextDir);
+    }
+
+    const currentSnake = snakeRef.current;
+    const head = currentSnake[0];
+    if (!head) return;
+
+    const newHead = {
+      x: head.x + nextDir.x,
+      y: head.y + nextDir.y,
+    };
+
+    // Wrap around walls
+    if (newHead.x < 0) {
+      newHead.x = gridSize - 1;
+    } else if (newHead.x >= gridSize) {
+      newHead.x = 0;
+    }
+
+    if (newHead.y < 0) {
+      newHead.y = gridSize - 1;
+    } else if (newHead.y >= gridSize) {
+      newHead.y = 0;
+    }
+
+    // Check collision with self or obstacles
+    if (
+      currentSnake.some(
+        (segment) => segment.x === newHead.x && segment.y === newHead.y
+      ) ||
+      obstacles.some(
+        (obs) => obs.x === newHead.x && obs.y === newHead.y
+      )
+    ) {
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      
+      try {
+        const key = `lastReviveDate_${userId}`;
+        const lastRevive = localStorage.getItem(key);
+        const isNextDay = lastRevive !== new Date().toDateString();
+        setCanRevive(isNextDay && !hasUsedReviveInSession);
+      } catch {
+        setCanRevive(!hasUsedReviveInSession);
+      }
+      
+      setGameOver(true);
+      onGameOver?.(scoreRef.current);
+      return;
+    }
+
+    const newSnake = [newHead, ...currentSnake];
+    const currentFood = foodRef.current[0];
+
+    // Check food collision
+    if (currentFood && newHead.x === currentFood.x && newHead.y === currentFood.y) {
+      if (navigator.vibrate) navigator.vibrate(50);
+      const newScore = scoreRef.current + 10;
+      setScore(newScore);
+      onScoreChange(newScore);
+      setFood(generateFood(newSnake, obstacles));
+      setJustAte(true);
+      setTimeout(() => setJustAte(false), 200);
+    } else {
+      newSnake.pop();
+    }
+
+    setSnake(newSnake);
+  }, [gridSize, obstacles, userId, hasUsedReviveInSession, onGameOver, onScoreChange, generateFood]);
+
   useEffect(() => {
     if (gameOver || isPaused) return;
 
-    const moveSnake = () => {
-      let nextDir = lastExecutedDirectionRef.current;
-      if (inputQueueRef.current.length > 0) {
-        nextDir = inputQueueRef.current.shift()!;
-        lastExecutedDirectionRef.current = nextDir;
-        setDirection(nextDir);
-      }
+    let animationFrameId: number;
+    let lastTime = performance.now();
 
-      const head = snake[0];
-      const newHead = {
-        x: head.x + nextDir.x,
-        y: head.y + nextDir.y,
-      };
+    const loop = (time: number) => {
+      animationFrameId = requestAnimationFrame(loop);
+      
+      const deltaTime = time - lastTime;
+      const isForced = forceTickRef.current;
 
-      // Wrap around walls
-      if (newHead.x < 0) {
-        newHead.x = gridSize - 1;
-      } else if (newHead.x >= gridSize) {
-        newHead.x = 0;
-      }
-
-      if (newHead.y < 0) {
-        newHead.y = gridSize - 1;
-      } else if (newHead.y >= gridSize) {
-        newHead.y = 0;
-      }
-
-      // Check collision with self or obstacles
-      if (
-        snake.some(
-          (segment) => segment.x === newHead.x && segment.y === newHead.y
-        ) ||
-        obstacles.some(
-          (obs) => obs.x === newHead.x && obs.y === newHead.y
-        )
-      ) {
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-        
-        try {
-          const key = `lastReviveDate_${userId}`;
-          const lastRevive = localStorage.getItem(key);
-          const isNextDay = lastRevive !== new Date().toDateString();
-          setCanRevive(isNextDay && !hasUsedReviveInSession);
-        } catch {
-          setCanRevive(!hasUsedReviveInSession);
-        }
-        
-        setGameOver(true);
-        onGameOver?.(score);
+      // Anti-spam 30ms throttle to prevent wall-clip or suicide bugs from rapid double inputs
+      if (isForced && deltaTime < 30) {
         return;
       }
 
-      const newSnake = [newHead, ...snake];
-
-      // Check food collision
-      if (newHead.x === food.x && newHead.y === food.y) {
-        if (navigator.vibrate) navigator.vibrate(50);
-        const newScore = score + 10;
-        setScore(newScore);
-        onScoreChange(newScore);
-        setFood(generateFood(newSnake, obstacles));
-        setJustAte(true);
-        setTimeout(() => setJustAte(false), 200);
-      } else {
-        newSnake.pop();
+      if (deltaTime >= speed || isForced) {
+        if (isForced) {
+          forceTickRef.current = false;
+          lastTime = time; // Reset timing cycle for instant response
+        } else {
+          lastTime = time - (deltaTime % speed); // Prevent timing drift
+        }
+        moveSnake();
       }
-
-      setSnake(newSnake);
     };
 
-    const timeoutId = setTimeout(moveSnake, speed);
-    return () => clearTimeout(timeoutId);
-  }, [snake, food, obstacles, gameOver, isPaused, score, onScoreChange, generateFood, speed, gridSize]);
+    animationFrameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [gameOver, isPaused, speed, moveSnake]);
 
   const cellSize = 100 / gridSize;
 
   return (
     <div 
       ref={gameContainerRef}
-      className="flex flex-col items-center justify-center w-full h-full relative touch-none"
+      className="flex flex-col items-center justify-center relative touch-none w-full h-full"
     >
       <div
-        className={`relative bg-black/60 border-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md ${isFullScreen ? 'rounded-none border-0 shadow-none' : ''} ${
-          theme === 'cyber' ? 'shadow-[0_0_40px_rgba(6,182,212,0.5),inset_0_0_30px_rgba(6,182,212,0.2)] border-cyan-400/80' : 
-          theme === 'plasma' ? 'shadow-[0_0_40px_rgba(217,70,239,0.5),inset_0_0_30px_rgba(217,70,239,0.2)] border-fuchsia-400/80' : 
-          'shadow-[0_0_40px_rgba(255,255,255,0.2),inset_0_0_30px_rgba(255,255,255,0.1)] border-zinc-400/80'
+        className={`relative bg-black/60 border-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md flex-shrink-0 ${isFullScreen ? 'rounded-none border-0 shadow-none w-full md:w-full' : 'w-[375px] md:w-full'} ${
+          theme === 'cyber' ? 'shadow-[0_0_40px_rgba(6,182,212,0.4),0_0_80px_rgba(6,182,212,0.1)] border-cyan-400/80' : 
+          theme === 'plasma' ? 'shadow-[0_0_40px_rgba(217,70,239,0.4),0_0_80px_rgba(217,70,239,0.1)] border-fuchsia-400/80' : 
+          'shadow-[0_0_40px_rgba(255,255,255,0.15)] border-zinc-400/80'
         }`}
         style={{
-          width: '100vmin',
-          height: '100vmin',
-          maxWidth: '100%',
-          maxHeight: '100%',
+          height: isFullScreen ? '100%' : 'auto',
+          maxWidth: isFullScreen ? '100%' : '75vh',
+          maxHeight: isFullScreen ? '100%' : '75vh',
           aspectRatio: '1 / 1',
           backgroundImage: theme === 'cyber' 
-            ? 'radial-gradient(circle at 50% 50%, rgba(6,182,212,0.15) 0%, rgba(0,0,0,0.8) 100%)' 
+
+            ? 'radial-gradient(circle at 50% 50%, rgba(6,182,212,0.1) 0%, rgba(0,0,0,0.9) 100%)' 
             : theme === 'plasma'
-            ? 'radial-gradient(circle at 50% 50%, rgba(217,70,239,0.15) 0%, rgba(0,0,0,0.8) 100%)'
-            : 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.8) 100%)'
+            ? 'radial-gradient(circle at 50% 50%, rgba(217,70,239,0.1) 0%, rgba(0,0,0,0.9) 100%)'
+            : 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.9) 100%)'
         }}
       >
+        {/* Quality Scanline Overlay */}
+        <div className="absolute inset-0 pointer-events-none z-[100] opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
+        
         {/* Obstacles */}
         {obstacles.map((obs, index) => (
           <motion.div
@@ -600,12 +654,12 @@ export default function SnakeGame({
                 {/* Right Ear */}
                 <div className="absolute top-[5%] right-[5%] w-[40%] h-[40%] bg-orange-500 rounded-full border border-orange-300" />
                 {/* Head/Body */}
-                <div className="absolute top-[15%] left-[10%] w-[80%] h-[80%] bg-gradient-to-b from-orange-400 to-orange-600 rounded-full shadow-inner">
-                  {/* Eyes */}
-                  <div className="absolute top-[30%] left-[20%] w-[20%] h-[25%] bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]" />
-                  <div className="absolute top-[30%] right-[20%] w-[20%] h-[25%] bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)]" />
+                <div className="absolute top-[15%] left-[10%] w-[80%] h-[80%] bg-gradient-to-b from-orange-400 via-orange-500 to-orange-600 rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.4)]">
+                  {/* Eyes with Glow */}
+                  <div className="absolute top-[30%] left-[20%] w-[20%] h-[25%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(239,68,68,1),inset_0_1px_2px_rgba(0,0,0,0.5)]" />
+                  <div className="absolute top-[30%] right-[20%] w-[20%] h-[25%] bg-red-600 rounded-full shadow-[0_0_10px_rgba(239,68,68,1),inset_0_1px_2px_rgba(0,0,0,0.5)]" />
                   {/* Nose */}
-                  <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-[15%] h-[15%] bg-pink-400 rounded-full shadow-[0_0_4px_rgba(244,114,182,0.8)]" />
+                  <div className="absolute top-[65%] left-1/2 -translate-x-1/2 w-[18%] h-[18%] bg-pink-500 rounded-full shadow-[0_0_8px_rgba(244,114,182,0.9),inset_0_1px_1px_rgba(255,255,255,0.4)]" />
                   {/* Whiskers */}
                   <div className="absolute top-[60%] -left-[20%] w-[40%] h-[2%] bg-white/50 rotate-12" />
                   <div className="absolute top-[70%] -left-[20%] w-[40%] h-[2%] bg-white/50 -rotate-12" />
@@ -684,8 +738,8 @@ export default function SnakeGame({
                 key={`segment-${index}`}
                 initial={false}
                 animate={{
-                  left: `${segment.x * cellSize}%`,
-                  top: `${segment.y * cellSize}%`,
+                  x: `${segment.x * 100}%`,
+                  y: `${segment.y * 100}%`,
                   scale: isHead && justAte ? 1.2 : segmentScale,
                 }}
                 transition={{
@@ -693,7 +747,7 @@ export default function SnakeGame({
                   ease: 'linear',
                   duration: isWrapped ? 0 : speed / 1000,
                 }}
-                className="absolute flex items-center justify-center"
+                className="absolute flex items-center justify-center top-0 left-0 will-change-transform"
                 style={{
                   width: `${cellSize}%`,
                   height: `${cellSize}%`,
@@ -709,13 +763,16 @@ export default function SnakeGame({
                     transform: `rotate(${headRotation}deg)` 
                   }}
                 >
-                  {/* Eyes */}
-                  <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  {/* Eyes with Depth */}
+                  <div className="absolute top-[20%] left-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.2),0_1px_2px_rgba(0,0,0,0.5)] transition-all">
+                    <div className="w-[45%] h-[45%] bg-white rounded-full ml-[15%] mt-[15%] opacity-90 group-hover:scale-110" />
                   </div>
-                  <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-inner">
-                    <div className="w-[40%] h-[40%] bg-white rounded-full ml-[15%] mt-[15%]" />
+                  <div className="absolute top-[20%] right-[20%] w-[25%] h-[25%] bg-black rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.2),0_1px_2px_rgba(0,0,0,0.5)] transition-all">
+                    <div className="w-[45%] h-[45%] bg-white rounded-full ml-[15%] mt-[15%] opacity-90 group-hover:scale-110" />
                   </div>
+                  {/* Eye Glow */}
+                  <div className={`absolute top-[25%] left-[25%] w-[10%] h-[10%] rounded-full blur-[1px] ${theme === 'cyber' ? 'bg-cyan-300' : 'bg-fuchsia-300'} opacity-50`} />
+                  <div className={`absolute top-[25%] right-[25%] w-[10%] h-[10%] rounded-full blur-[1px] ${theme === 'cyber' ? 'bg-cyan-300' : 'bg-fuchsia-300'} opacity-50`} />
                   {/* Forked Tongue */}
                   <div className="absolute -top-[30%] left-1/2 -translate-x-1/2 w-[10%] h-[40%] bg-red-500 flex justify-center">
                     <div className="absolute -top-[20%] left-0 w-[80%] h-[40%] bg-red-500 rotate-45 origin-bottom-right" />
@@ -732,12 +789,16 @@ export default function SnakeGame({
                 />
               ) : (
                 <div 
-                  className="w-[90%] h-[90%] rounded-lg"
+                  className="w-[90%] h-[90%] rounded-lg relative overflow-hidden"
                   style={{ 
                     backgroundColor: segmentColor,
                     boxShadow: `0 0 10px ${glowColor}, inset 0 0 8px rgba(0,0,0,0.3)`
                   }} 
-                />
+                >
+                  {/* High Quality Reflection/Highlight */}
+                  <div className="absolute top-0 left-0 w-full h-[30%] bg-gradient-to-b from-white/20 to-transparent" />
+                  <div className="absolute top-[10%] left-[10%] w-[15%] h-[15%] bg-white/40 rounded-full blur-[0.5px]" />
+                </div>
               )}
             </motion.div>
           );
@@ -852,7 +913,7 @@ export default function SnakeGame({
             initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(4px)' }}
             exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-20"
+            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-20 pointer-events-none"
           >
             <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
               PAUSED
@@ -860,6 +921,42 @@ export default function SnakeGame({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* D-Pad for Mobile - transparent over bottom section */}
+      {isMobile && !gameOver && !isPaused && (
+        <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-8">
+          <div className="w-[200px] h-[200px] mx-auto relative pointer-events-auto opacity-30 active:opacity-60 transition-opacity">
+            <button
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-white/20 rounded-t-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
+              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 0, y: -1 }); }}
+              onClick={() => handleDirectionClick({ x: 0, y: -1 })}
+            >
+              <div className="w-0 h-0 border-l-8 border-r-8 border-b-12 border-transparent border-b-white"></div>
+            </button>
+            <button
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-white/20 rounded-b-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
+              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 0, y: 1 }); }}
+              onClick={() => handleDirectionClick({ x: 0, y: 1 })}
+            >
+              <div className="w-0 h-0 border-l-8 border-r-8 border-t-12 border-transparent border-t-white"></div>
+            </button>
+            <button
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/20 rounded-l-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
+              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: -1, y: 0 }); }}
+              onClick={() => handleDirectionClick({ x: -1, y: 0 })}
+            >
+              <div className="w-0 h-0 border-t-8 border-b-8 border-r-12 border-transparent border-r-white"></div>
+            </button>
+            <button
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/20 rounded-r-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
+              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 1, y: 0 }); }}
+              onClick={() => handleDirectionClick({ x: 1, y: 0 })}
+            >
+              <div className="w-0 h-0 border-t-8 border-b-8 border-l-12 border-transparent border-l-white"></div>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

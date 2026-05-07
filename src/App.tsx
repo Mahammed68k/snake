@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
-import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { auth, db, googleProvider, facebookProvider } from './firebase';
+import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { auth, db, googleProvider, facebookProvider, testFirestoreConnection } from './firebase';
 import { handleFirestoreError, OperationType } from './lib/firestoreErrorHandler';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, X, Palette, MessageSquare } from 'lucide-react';
@@ -23,7 +23,8 @@ interface GameSettings {
 // Error Boundary Component
 export default function App() {
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [personalBest, setPersonalBest] = useState(0);
+  const [divisionRecord, setDivisionRecord] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showIntro, setShowIntro] = useState(true);
@@ -36,17 +37,26 @@ export default function App() {
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [gameState, setGameState] = useState<'menu' | 'playing'>('menu');
+  const prevUserUid = React.useRef<string | null>(null);
 
   const getUserProvider = (u: User | null): 'google' | 'facebook' | 'playgames' | 'guest' => {
     if (!u || u.isAnonymous) return 'guest';
-    const storedProvider = localStorage.getItem('authProvider');
-    if (storedProvider === 'playgames') return 'playgames';
-    if (storedProvider === 'facebook') return 'facebook';
-    if (storedProvider === 'google') return 'google';
+    
+    // Check providerData first as it is the most reliable current state
+    for (const data of u.providerData) {
+      if (data.providerId === 'facebook.com') return 'facebook';
+      if (data.providerId === 'google.com') return 'google';
+      // Some versions of Play Games might use different provider strings
+      if (data.providerId.includes('play') || data.providerId.includes('games')) return 'playgames';
+    }
 
-    const providerId = u.providerData[0]?.providerId;
-    if (providerId === 'facebook.com') return 'facebook';
+    const storedProvider = localStorage.getItem('authProvider');
+    if (storedProvider === 'playgames' || storedProvider === 'facebook' || storedProvider === 'google') {
+      return storedProvider as any;
+    }
+
     return 'google';
   };
 
@@ -193,15 +203,77 @@ export default function App() {
   }, [settings]);
 
   useEffect(() => {
-    if (score > highScore) {
-      setHighScore(score);
+    if (score > personalBest) {
+      setPersonalBest(score);
     }
-  }, [score, highScore]);
+  }, [score, personalBest]);
+
+  useEffect(() => {
+    if (score > divisionRecord) {
+      // Immediate session update if player beats the current leaderboard record
+      setDivisionRecord(score);
+    }
+  }, [score, divisionRecord]);
+
+  useEffect(() => {
+    // Initial connectivity check
+    testFirestoreConnection().then(connected => {
+      setIsOffline(!connected);
+    });
+
+    // Listen for window offline events
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Fetch Division Record (1st Position) for current provider
+    const provider = getUserProvider(user);
+    const q = query(collection(db, `leaderboard_${provider}`), orderBy('score', 'desc'), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const dbRecord = snapshot.docs[0].data().score || 0;
+        // Keep the donor record if it's higher than the DB record (prevents reset during active game)
+        setDivisionRecord(prev => Math.max(prev, dbRecord));
+      } else {
+        setDivisionRecord(prev => Math.max(prev, 0));
+      }
+    }, (err) => {
+      console.warn(`Division record fetch failed for ${provider}`, err);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // Immediate state updates
       setUser(currentUser);
       setLoading(false);
+      
+      // Reset scores when user truly changes (identity change)
+      if (currentUser?.uid !== prevUserUid.current) {
+        setScore(0);
+        
+        // Update appropriate local score for the current identity
+        const storageKey = currentUser ? `snakeHighScore_${currentUser.uid}` : 'snakeHighScore_guest';
+        const saved = localStorage.getItem(storageKey) || '0';
+        const initialScore = parseInt(saved, 10);
+        setPersonalBest(initialScore);
+        
+        // If we have a current session score, compare it
+        if (score > initialScore) {
+          setPersonalBest(score);
+          localStorage.setItem(storageKey, score.toString());
+        }
+
+        prevUserUid.current = currentUser?.uid || null;
+      }
       
       if (currentUser) {
         setNewName(currentUser.displayName || '');
@@ -218,34 +290,69 @@ export default function App() {
         
         // Fetch high score from Firestore based on provider asynchronously
         const fetchHighScore = async () => {
-          const provider = getUserProvider(currentUser);
-          const collectionName = `leaderboard_${provider}`;
-          const scoreRef = doc(db, collectionName, currentUser.uid);
+          let currentProvider = getUserProvider(currentUser);
+          
+          const fetchFromProvider = async (p: string) => {
+            const collectionName = `leaderboard_${p}`;
+            const scoreRef = doc(db, collectionName, currentUser.uid);
+            try {
+              const scoreDoc = await getDoc(scoreRef);
+              if (scoreDoc.exists()) {
+                return scoreDoc.data().score as number;
+              }
+            } catch (err) {
+              console.warn(`Failed to fetch from ${collectionName}`, err);
+            }
+            return null;
+          };
+
           try {
-            const scoreDoc = await getDoc(scoreRef);
-            if (scoreDoc.exists()) {
-              const dbScore = scoreDoc.data().score;
-              setHighScore(dbScore);
+            // Check all possible collections to find the absolute highest score recorded for this identity
+            const possibleProviders = ['google', 'facebook', 'playgames', 'guest'];
+            let absoluteMaxDbScore = -1;
+
+            for (const p of possibleProviders) {
+              const s = await fetchFromProvider(p);
+              if (s !== null && s > absoluteMaxDbScore) {
+                absoluteMaxDbScore = s;
+              }
+            }
+
+            // Sync logic: Cloud vs Local
+            const localHighScoreKey = `snakeHighScore_${currentUser.uid}`;
+            const localBest = parseInt(localStorage.getItem(localHighScoreKey) || '0', 10);
+            
+            // Source of Truth logic
+            let finalSyncScore = Math.max(absoluteMaxDbScore, localBest, 0);
+
+            if (finalSyncScore > 0) {
+              setPersonalBest(prev => Math.max(prev, finalSyncScore));
+              localStorage.setItem(localHighScoreKey, Math.max(localBest, finalSyncScore).toString());
               
-              // Update profile picture and name if they played before
-              if (getPhotoURL(currentUser) || currentUser.displayName) {
+              // If cloud was behind local or missing, sync it UP
+              if (finalSyncScore > absoluteMaxDbScore) {
+                const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
                 await setDoc(scoreRef, {
-                  displayName: currentUser.displayName || scoreDoc.data().displayName,
+                  userId: currentUser.uid,
+                  displayName: currentUser.displayName || 'Player',
                   photoURL: getPhotoURL(currentUser),
+                  score: finalSyncScore,
+                  timestamp: serverTimestamp()
+                }, { merge: true });
+              }
+
+              // Update profile info in the cloud if it exists
+              const photo = getPhotoURL(currentUser);
+              if (photo || currentUser.displayName) {
+                const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
+                await setDoc(scoreRef, {
+                  displayName: currentUser.displayName || 'Player',
+                  photoURL: photo,
                 }, { merge: true });
               }
             } else {
-              setHighScore(0);
-              // Reserve the name if it's already set (e.g. Google/Facebook)
-              if (currentUser.displayName) {
-                await setDoc(scoreRef, {
-                  userId: currentUser.uid,
-                  displayName: currentUser.displayName,
-                  photoURL: getPhotoURL(currentUser),
-                  score: 0,
-                  timestamp: serverTimestamp()
-                });
-              }
+              setPersonalBest(0);
+              localStorage.setItem(localHighScoreKey, '0');
             }
           } catch (error) {
             console.error("Error fetching high score:", error);
@@ -253,6 +360,10 @@ export default function App() {
         };
         
         fetchHighScore();
+      } else {
+        // Guest mode
+        const saved = localStorage.getItem('snakeHighScore_guest') || '0';
+        setPersonalBest(parseInt(saved, 10));
       }
     });
     return () => unsubscribe();
@@ -400,8 +511,10 @@ export default function App() {
     if (!user || finalScore === 0) return;
     
     // Only update if new score is higher than current local high score
-    // This allows instant local UI updates (zero lag) while writing to DB in background
-    if (finalScore > highScore) {
+    if (finalScore > personalBest) {
+      setPersonalBest(finalScore);
+      localStorage.setItem(user ? `snakeHighScore_${user.uid}` : 'snakeHighScore_guest', finalScore.toString());
+      
       const provider = getUserProvider(user);
       const collectionName = `leaderboard_${provider}`;
       const path = `${collectionName}/${user.uid}`;
@@ -432,7 +545,7 @@ export default function App() {
     const hasSeen = localStorage.getItem(`snake_has_seen_instructions_${user.uid}`);
     
     if (!hasSeen) {
-      if (highScore > 0) {
+      if (personalBest > 0) {
         // Existing user who already has a score, don't bother them
         localStorage.setItem(`snake_has_seen_instructions_${user.uid}`, 'true');
         setGameState('playing');
@@ -475,23 +588,40 @@ export default function App() {
 
   const currentProvider = getUserProvider(user);
   const providerDisplayName = currentProvider === 'google' ? 'Google' : currentProvider === 'facebook' ? 'Facebook' : currentProvider === 'playgames' ? 'Play Games' : 'Guest';
-  const scoreLabelText = `${providerDisplayName} Score`;
+  const recordLabelText = `${providerDisplayName.toUpperCase()}_TOP`;
 
   return (
     <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+      {/* Offline Warning Banner */}
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div 
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -50, opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-[100] bg-red-500/90 backdrop-blur-md px-4 py-2 text-center"
+          >
+            <p className="text-white text-[10px] md:text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              Offline Mode: Connection to Leaderboard currently unavailable
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Header / HUD - Hidden in Full Screen */}
       {!isFullScreen && (
-        <header className="absolute top-4 left-4 right-4 flex items-start justify-between z-20 pointer-events-none">
-          <div className="flex flex-col pointer-events-auto text-center">
+        <header className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
+          <div className="flex flex-col pointer-events-auto">
             {gameState === 'playing' && (
-              <>
-                <h1 className="text-2xl md:text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tracking-wider">
+              <div className="flex flex-col items-start translate-y-1" style={{ fontFamily: 'Times New Roman' }}>
+                <h1 className="text-2xl md:text-3xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-fuchsia-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)] tracking-widest leading-none">
                   SNAKE
                 </h1>
-                <p className="text-white font-display tracking-widest text-[10px] md:text-xs mt-0.5 drop-shadow-sm">
+                <p className="text-white font-display tracking-[0.3em] text-[8px] md:text-[10px] mt-1 font-bold opacity-90">
                   MK EDITION
                 </p>
-              </>
+              </div>
             )}
           </div>
 
@@ -619,34 +749,83 @@ export default function App() {
               </>
             )}
 
-            {/* Score Display */}
-            <div className={`flex gap-2 md:gap-3 items-stretch ${isGameOver ? 'hidden' : ''}`}>
+            {/* Unified Score Display */}
+            <div className={`${isGameOver ? 'hidden' : ''}`}>
               {gameState === 'playing' && (
-                <>
-                  <div role="status" aria-label="Current Score" className="bg-black/60 border border-cyan-500/50 rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(6,182,212,0.15)] backdrop-blur-xl border-l-4">
-                    <p className="text-white text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-black mb-0.5 md:mb-1 text-center leading-[15px]" style={{ fontFamily: 'Times New Roman' }}>Current_Score</p>
-                    <p className="text-xl md:text-[30px] font-bold text-cyan-100 drop-shadow-[0_0_10px_rgba(34,211,238,0.5)] tabular-nums leading-none text-center" style={{ fontFamily: 'Times New Roman' }}>
-                      {score.toString().padStart(4, '0')}
-                    </p>
+                <div className="flex flex-col items-end gap-3 pointer-events-auto">
+                  <div role="status" className="relative group pointer-events-auto" style={{ fontFamily: 'Times New Roman' }}>
+                    {/* Outer Glow Effect */}
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-fuchsia-600 rounded-[14px] opacity-20 blur-sm group-hover:opacity-30 transition-opacity duration-500" />
+                    
+                    <div className="relative bg-[#0a0a0a]/95 border border-white/20 rounded-[12px] px-4 py-2 md:px-6 md:py-2.5 shadow-[0_0_20px_rgba(0,0,0,0.8)] backdrop-blur-xl flex items-center gap-5 md:gap-7 overflow-hidden">
+                      {/* Top Highlight line */}
+                      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent" />
+                      
+                      {/* Current Score Column */}
+                      <div className="flex flex-col items-center min-w-[45px] md:min-w-[60px] relative z-10">
+                        <p className="text-cyan-400 text-[6px] md:text-[8px] font-bold tracking-[0.2em] mb-1 uppercase opacity-100" style={{ fontFamily: 'Times New Roman' }}>CURRENT</p>
+                        <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tabular-nums leading-none tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" style={{ fontFamily: 'Times New Roman' }}>
+                          {score.toString().padStart(4, '0')}
+                        </p>
+                      </div>
+                      
+                      {/* Vertical Divider - High Quality Styling */}
+                      <div className="relative w-[1px] h-8 md:h-10">
+                        <div className="absolute inset-0 bg-white/20" />
+                        <div className="absolute inset-y-0 left-0 w-[1px] bg-gradient-to-b from-transparent via-white/50 to-transparent" />
+                      </div>
+                      
+                      {/* Division Record Column */}
+                      <div className="flex flex-col items-center min-w-[45px] md:min-w-[60px] relative z-10">
+                        <p className="text-yellow-400 text-[6px] md:text-[8px] font-bold tracking-[0.2em] mb-1 uppercase opacity-100" style={{ fontFamily: 'Times New Roman' }}>{recordLabelText}</p>
+                        <p 
+                          className="text-lg md:text-2xl lg:text-3xl font-black text-yellow-100 tabular-nums leading-none tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]" 
+                          style={{ fontFamily: 'Times New Roman' }}
+                        >
+                          {divisionRecord.toString().padStart(4, '0')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div role="status" aria-label="High Score" className="bg-black/60 border rounded-xl px-3 py-1.5 md:px-5 md:py-2.5 shadow-[0_0_25px_rgba(217,70,239,0.15)] backdrop-blur-xl border-l-4" style={{ borderColor: '#fb2a2a' }}>
-                    <p className="text-white text-[8px] md:text-[10px] uppercase tracking-[0.2em] font-black mb-0.5 md:mb-1 text-center leading-[15px] max-w-[100px] md:max-w-[120px] whitespace-normal md:whitespace-nowrap truncate" style={{ fontFamily: 'Times New Roman' }}>{scoreLabelText}</p>
-                    <motion.p 
-                      key={highScore}
-                      initial={{ scale: 1.3, filter: 'brightness(1.5)' }}
-                      animate={{ scale: 1, filter: 'brightness(1)' }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 10 }}
-                      className="text-lg md:text-2xl lg:text-3xl font-black text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)] tabular-nums leading-none text-center" 
-                      style={{ borderColor: '#ff6a6a', fontFamily: 'Times New Roman' }}
-                    >
-                      {highScore.toString().padStart(4, '0')}
-                    </motion.p>
-                  </div>
-                </>
+                </div>
               )}
             </div>
           </div>
         </header>
+      )}
+
+      {/* Desktop Controls Info Card - Bottom Right */}
+      {gameState === 'playing' && !isGameOver && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="hidden xl:flex fixed bottom-6 right-6 flex-col gap-2 bg-black/60 border border-white/5 rounded-xl p-3 backdrop-blur-xl border-r-4 border-r-gray-500/30 z-[50]"
+        >
+          <p className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">In-Game Commands</p>
+          
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-10">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Move</span>
+              <div className="flex gap-1">
+                <span className="px-1.5 py-0.5 bg-white/10 border border-white/10 rounded text-[9px] font-mono text-cyan-300">WASD</span>
+                <span className="px-1.5 py-0.5 bg-white/10 border border-white/10 rounded text-[9px] font-mono text-cyan-300">ARROWS</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between gap-10">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Pause</span>
+              <div className="flex gap-1">
+                <span className="px-1.5 py-0.5 bg-white/10 border border-white/10 rounded text-[9px] font-mono text-fuchsia-400">P</span>
+                <span className="px-1.5 py-0.5 bg-white/10 border border-white/10 rounded text-[9px] font-mono text-fuchsia-400">SPACE</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-10">
+              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Menu</span>
+              <span className="px-1.5 py-0.5 bg-white/10 border border-white/10 rounded text-[9px] font-mono text-red-400">ESC</span>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Exit Full Screen Button */}
@@ -673,7 +852,9 @@ export default function App() {
       )}
 
       {/* Game Area - Full Screen Centered */}
-      <main className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 ${isFullScreen ? 'p-0' : 'p-4 md:p-12 landscape:p-2'}`}>
+      <main 
+        className={`relative z-10 w-full h-full flex items-center justify-center transition-all duration-500 mx-auto ${isFullScreen ? 'p-0' : 'max-w-[375px] md:max-w-[768px] lg:max-w-[1024px] xl:max-w-[1200px] px-0 py-20 md:p-12 landscape:p-4'}`}
+      >
         <AnimatePresence mode="wait">
           <Suspense fallback={null}>
             {gameState === 'playing' ? (
@@ -688,7 +869,7 @@ export default function App() {
                   onScoreChange={setScore} 
                   onGameOver={handleGameOver} 
                   onGameOverStateChange={setIsGameOver}
-                  highScore={highScore} 
+                  highScore={personalBest} 
                   onShowLeaderboard={() => setShowLeaderboard(true)}
                   onReturnToMenu={() => setGameState('menu')}
                   isFullScreen={isFullScreen}

@@ -9,21 +9,24 @@ export default function Login() {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [showGuestInput, setShowGuestInput] = useState(false);
   const [guestName, setGuestName] = useState('');
-  const [showDesktopPopup, setShowDesktopPopup] = useState(true);
+  const [showDesktopPopup, setShowDesktopPopup] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [cachedUser, setCachedUser] = useState<{name: string, email: string, photo: string | null} | null>(null);
 
   // Load cached user info for personalization
   useEffect(() => {
+    // Only access localStorage once on mount
     try {
       const saved = localStorage.getItem('last_user_profile');
       if (saved) {
         let profile = JSON.parse(saved);
-        // Clean up old ui-avatars URLs from cache if they exist
         if (profile.photo && (profile.photo.includes('ui-avatars.com') || profile.photo.includes('dicebear'))) {
           profile.photo = null;
         }
         setCachedUser(profile);
+        // Defer showing the popup slightly to prioritize main UI render
+        const timer = setTimeout(() => setShowDesktopPopup(true), 100);
+        return () => clearTimeout(timer);
       }
     } catch (e) {
       console.warn('Failed to load cached user profile');
@@ -221,7 +224,7 @@ export default function Login() {
     <main className="fixed inset-0 min-h-[100dvh] bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 font-sans overflow-y-auto">
       {/* Desktop One Tap Style Popup */}
       <AnimatePresence>
-        {showDesktopPopup && !showGuestInput && (
+        {showDesktopPopup && cachedUser && !showGuestInput && (
           <motion.div 
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -280,16 +283,16 @@ export default function Login() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white text-lg font-medium tracking-tighter">
-                        {cachedUser?.name ? cachedUser.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'BM'}
+                        {cachedUser?.name ? cachedUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) : '?'}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="text-[16px] font-medium text-white truncate px-1">
-                      {cachedUser?.name || 'ßhaik Maha'}
+                      {cachedUser?.name}
                     </span>
                     <span className="text-[14px] text-[#9aa0a6] truncate mt-0.5 px-1 font-normal">
-                      {cachedUser?.email || 'mahammed68k@gmail.com'}
+                      {cachedUser?.email}
                     </span>
                   </div>
                 </div>
@@ -299,7 +302,7 @@ export default function Login() {
                     onClick={handleOneTapLogin}
                     className="w-full bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124] py-2.5 rounded-full text-[14px] font-bold transition-all active:scale-[0.98] shadow-md"
                   >
-                    Continue as {cachedUser?.name ? cachedUser.name.split(' ')[0] : 'ßhaik'}
+                    Continue as {cachedUser?.name?.split(' ')[0] || 'Player'}
                   </button>
                 )}
               </div>

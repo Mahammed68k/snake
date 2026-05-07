@@ -55,5 +55,10 @@ service cloud.firestore {
                     request.resource.data.timestamp is timestamp;
       allow read, update, delete: if false;
     }
+
+    // Publicly readable path for connectivity heartbeats
+    match /_connection_test_/{docId} {
+      allow read: if true;
+    }
   }
 }

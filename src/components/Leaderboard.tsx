@@ -170,7 +170,13 @@ export default function Leaderboard({ provider, onClose }: LeaderboardProps) {
                     <span className="text-xl font-bold text-white w-6 tabular-nums text-right shrink-0">{index + 1}</span>
                     
                     <div className="w-[3.25rem] h-[3.25rem] rounded-full overflow-hidden ml-4 mr-4 bg-white/5 shrink-0 flex items-center justify-center">
-                      <img src={getHighResPhoto(entry.photoURL) || getAvatarUrl(entry.displayName || 'Anon', index)} className={`w-full h-full object-cover ${!entry.photoURL ? 'scale-110 mt-1' : ''}`} alt="" />
+                      <img 
+                        src={getHighResPhoto(entry.photoURL) || getAvatarUrl(entry.displayName || 'Anon', index)} 
+                        className={`w-full h-full object-cover ${!entry.photoURL ? 'scale-110 mt-1' : ''}`} 
+                        alt="" 
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                     
                     <div className="flex-1 min-w-0 pr-4 flex flex-col justify-center">

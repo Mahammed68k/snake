@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { motion } from 'motion/react';
 
 interface IntroScreenProps {
   onComplete: () => void;
@@ -17,20 +16,14 @@ export default function IntroScreen({ onComplete }: IntroScreenProps) {
     <main
       className="flex flex-col items-center justify-center w-full h-full"
     >
-      <motion.p
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.4 }}
-        className="text-white font-display tracking-[0.5em] text-sm md:text-xl font-bold"
+      <p
+        className="text-white font-display tracking-[0.5em] text-sm md:text-xl font-bold opacity-0 animate-[fadeInUp_0.4s_ease-out_0.3s_forwards]"
       >
         MK EDITION
-      </motion.p>
+      </p>
       
-      <motion.div 
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ delay: 0.6, duration: 0.7, ease: "easeInOut" }}
-        className="h-1 w-48 md:w-64 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mt-8"
+      <div 
+        className="h-1 w-48 md:w-64 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mt-8 origin-center scale-x-0 animate-[scaleInX_0.7s_ease-in-out_0.6s_forwards]"
       />
     </main>
   );

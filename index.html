@@ -9,14 +9,59 @@
     <meta name="google-site-verification" content="Rjoy7vwwJExgYPAtQ7UJoh8CbR1ZeBUMvmENuyaR5tc" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://api.dicebear.com" />
-    <link rel="preconnect" href="https://gen-lang-client-0759500410.firebaseapp.com" />
-    <link rel="preconnect" href="https://www.googleapis.com" />
-    <link rel="preconnect" href="https://apis.google.com" />
+    <link rel="preconnect" href="https://apis.google.com" crossorigin />
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.googleapis.com" crossorigin />
+    <style>
+      :root { --bg: #050505; --cyan: #06b6d4; --fuchsia: #d946ef; }
+      body { 
+        background-color: var(--bg); 
+        margin: 0; 
+        color: white; 
+        font-family: 'Inter', -apple-system, system-ui, sans-serif;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        overflow: hidden;
+      }
+      #root { 
+        background-color: var(--bg); 
+        min-height: 100dvh; 
+        display: flex;
+        flex-direction: column;
+      }
+      .initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        z-index: 9999;
+        gap: 20px;
+      }
+      .loader-spinner {
+        width: 32px;
+        height: 32px;
+        border: 2px solid rgba(6, 182, 212, 0.1);
+        border-top-color: var(--cyan);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+      }
+      .loader-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 10px;
+        text-transform: uppercase;
+        tracking-widest: 0.3em;
+        color: rgba(255,255,255,0.4);
+        letter-spacing: 0.2em;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
     <link rel="preload" href="https://fonts.gstatic.com/s/orbitron/v31/y97pyIulS2oqnyhSGY2euv_iO_sa1D6v6nK-I_A.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Inter:wght@400;500&display=swap" media="print" onload="this.media='all'" />
     <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@400;500;600&display=swap" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Inter:wght@400;500&display=swap" />
     </noscript>
     <link rel="icon" type="image/png" href="/snake-logo-final.png?v=4" />
     <link rel="apple-touch-icon" href="/snake-logo-final.png?v=4" />
@@ -26,8 +71,26 @@
     <link rel="manifest" href="/manifest.webmanifest?v=2" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="initial-loader" id="pwa-loader">
+        <div class="loader-spinner"></div>
+        <div class="loader-text">Loading MK Edition</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove loader once React mounts to prevent double loaders
+      window.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver((mutations) => {
+          if (document.querySelector('#root').children.length > 1) {
+            const loader = document.getElementById('pwa-loader');
+            if (loader) loader.style.display = 'none';
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.querySelector('#root'), { childList: true });
+      });
+    </script>
   </body>
 </html>
 
