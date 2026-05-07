@@ -55,8 +55,6 @@ export default function SnakeGame({
   const [score, setScore] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const isPausedRef = useRef<boolean>(false);
-  const forceTickRef = useRef<boolean>(false);
-
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
@@ -150,7 +148,6 @@ export default function SnakeGame({
             if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
               if (queue.length < 4) { // Increased queue size
                 queue.push(newDir);
-                forceTickRef.current = true;
               }
             }
           }
@@ -210,7 +207,6 @@ export default function SnakeGame({
     if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
       if (queue.length < 4) {
         queue.push(newDir);
-        forceTickRef.current = true;
       }
     }
     setIsPaused(false);
@@ -414,7 +410,6 @@ export default function SnakeGame({
         if (newDir.x !== lastDir.x || newDir.y !== lastDir.y) {
           if (queue.length < 4) {
             queue.push(newDir);
-            forceTickRef.current = true;
           }
         }
       }
@@ -525,20 +520,8 @@ export default function SnakeGame({
       animationFrameId = requestAnimationFrame(loop);
       
       const deltaTime = time - lastTime;
-      const isForced = forceTickRef.current;
-
-      // Anti-spam 30ms throttle to prevent wall-clip or suicide bugs from rapid double inputs
-      if (isForced && deltaTime < 30) {
-        return;
-      }
-
-      if (deltaTime >= speed || isForced) {
-        if (isForced) {
-          forceTickRef.current = false;
-          lastTime = time; // Reset timing cycle for instant response
-        } else {
-          lastTime = time - (deltaTime % speed); // Prevent timing drift
-        }
+      if (deltaTime >= speed) {
+        lastTime = time - (deltaTime % speed); // Prevent timing drift
         moveSnake();
       }
     };
@@ -913,7 +896,7 @@ export default function SnakeGame({
             initial={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, scale: 1, backdropFilter: 'blur(4px)' }}
             exit={{ opacity: 0, scale: 0.9, backdropFilter: 'blur(0px)' }}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-20 pointer-events-none"
+            className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg z-20"
           >
             <h2 className="text-4xl font-bold text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
               PAUSED
@@ -921,42 +904,6 @@ export default function SnakeGame({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* D-Pad for Mobile - transparent over bottom section */}
-      {isMobile && !gameOver && !isPaused && (
-        <div className="absolute inset-0 z-30 pointer-events-none flex flex-col justify-end pb-8">
-          <div className="w-[200px] h-[200px] mx-auto relative pointer-events-auto opacity-30 active:opacity-60 transition-opacity">
-            <button
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-white/20 rounded-t-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
-              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 0, y: -1 }); }}
-              onClick={() => handleDirectionClick({ x: 0, y: -1 })}
-            >
-              <div className="w-0 h-0 border-l-8 border-r-8 border-b-12 border-transparent border-b-white"></div>
-            </button>
-            <button
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-16 bg-white/20 rounded-b-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
-              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 0, y: 1 }); }}
-              onClick={() => handleDirectionClick({ x: 0, y: 1 })}
-            >
-              <div className="w-0 h-0 border-l-8 border-r-8 border-t-12 border-transparent border-t-white"></div>
-            </button>
-            <button
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/20 rounded-l-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
-              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: -1, y: 0 }); }}
-              onClick={() => handleDirectionClick({ x: -1, y: 0 })}
-            >
-              <div className="w-0 h-0 border-t-8 border-b-8 border-r-12 border-transparent border-r-white"></div>
-            </button>
-            <button
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/20 rounded-r-2xl border border-white/30 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:bg-white/30 active:bg-white/40 flex items-center justify-center touch-manipulation"
-              onTouchStart={(e) => { e.preventDefault(); handleDirectionClick({ x: 1, y: 0 }); }}
-              onClick={() => handleDirectionClick({ x: 1, y: 0 })}
-            >
-              <div className="w-0 h-0 border-t-8 border-b-8 border-l-12 border-transparent border-l-white"></div>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -558,40 +558,29 @@ export default function App() {
     }
   };
 
-  if (showIntro) {
-    return (
-      <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
-        <AnimatePresence mode="wait">
-          <Suspense fallback={null}>
-            <IntroScreen key="intro" onComplete={() => setShowIntro(false)} />
-          </Suspense>
-        </AnimatePresence>
-      </main>
-    );
-  }
-
-  if (loading) {
-    return (
-      <main className="fixed inset-0 h-[100dvh] bg-[#050505] flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-      </main>
-    );
-  }
-
-  if (!user) {
-    return (
-      <Suspense fallback={<div className="fixed inset-0 bg-[#050505]" />}>
-        <Login />
-      </Suspense>
-    );
-  }
-
   const currentProvider = getUserProvider(user);
   const providerDisplayName = currentProvider === 'google' ? 'Google' : currentProvider === 'facebook' ? 'Facebook' : currentProvider === 'playgames' ? 'Play Games' : 'Guest';
   const recordLabelText = `${providerDisplayName.toUpperCase()}_TOP`;
 
-  return (
-    <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
+  const renderAppContent = () => {
+    if (loading) {
+      return (
+        <main className="fixed inset-0 h-[100dvh] bg-[#050505] flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+        </main>
+      );
+    }
+
+    if (!user) {
+      return (
+        <Suspense fallback={<div className="fixed inset-0 bg-[#050505]" />}>
+          <Login />
+        </Suspense>
+      );
+    }
+
+    return (
+      <main className="fixed inset-0 h-[100dvh] w-screen bg-[#050505] overflow-hidden flex items-center justify-center font-sans p-0 m-0">
       {/* Offline Warning Banner */}
       <AnimatePresence>
         {isOffline && (
@@ -1166,5 +1155,33 @@ export default function App() {
         </div>
       )}
     </main>
+    );
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      {showIntro ? (
+        <motion.div 
+          key="intro-overlay" 
+          className="fixed inset-0 z-[200] bg-zinc-950 flex items-center justify-center p-0 m-0"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
+        >
+          <Suspense fallback={null}>
+            <IntroScreen onComplete={() => setShowIntro(false)} />
+          </Suspense>
+        </motion.div>
+      ) : (
+        <motion.div
+           key="app-content"
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           transition={{ duration: 0.5, ease: "easeOut" }}
+           className="fixed inset-0 z-10"
+        >
+          {renderAppContent()}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
