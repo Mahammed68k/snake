@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { onAuthStateChanged, signOut, User, updateProfile, linkWithPopup } from 'firebase/auth';
 import { collection, serverTimestamp, doc, getDoc, setDoc, query, where, getDocs, addDoc, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { auth, db, googleProvider, facebookProvider, testFirestoreConnection } from './firebase';
@@ -10,7 +10,6 @@ const SnakeGame = lazy(() => import('./components/SnakeGame'));
 const Login = lazy(() => import('./components/Login'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
-const IntroScreen = lazy(() => import('./components/IntroScreen'));
 
 import { getAvatarUrl } from './components/Leaderboard';
 
@@ -27,7 +26,6 @@ export default function App() {
   const [divisionRecord, setDivisionRecord] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showIntro, setShowIntro] = useState(true);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -393,6 +391,99 @@ export default function App() {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isFullScreen]);
+
+  const stateRef = useRef({
+    showLeaderboard,
+    showSettings,
+    showProfileModal,
+    showFeedbackModal,
+    showProfileMenu,
+    isFullScreen,
+    gameState
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      showLeaderboard,
+      showSettings,
+      showProfileModal,
+      showFeedbackModal,
+      showProfileMenu,
+      isFullScreen,
+      gameState
+    };
+  }, [showLeaderboard, showSettings, showProfileModal, showFeedbackModal, showProfileMenu, isFullScreen, gameState]);
+
+  // Handle System Back Button (Edge swipe on Android/iOS via History API)
+  useEffect(() => {
+    window.history.pushState({ page: 'start' }, '');
+    window.history.pushState({ page: 'main' }, '');
+
+    const handlePopState = (e: PopStateEvent) => {
+      const s = stateRef.current;
+      let actionTaken = false;
+
+      if (s.showLeaderboard) { setShowLeaderboard(false); actionTaken = true; }
+      if (s.showSettings) { setShowSettings(false); actionTaken = true; }
+      if (s.showProfileModal) { setShowProfileModal(false); actionTaken = true; }
+      if (s.showFeedbackModal) { setShowFeedbackModal(false); actionTaken = true; }
+      if (s.showProfileMenu) { setShowProfileMenu(false); actionTaken = true; }
+      if (s.isFullScreen) { setIsFullScreen(false); actionTaken = true; }
+      if (s.gameState === 'playing' || s.gameState === 'gameover') { 
+        setGameState('menu'); 
+        actionTaken = true; 
+      }
+
+      if (actionTaken) {
+        // If we closed a modal, push 'main' again so the next back press is also intercepted
+        window.history.pushState({ page: 'main' }, '');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Back gesture: Swipe from left or right edge to go back (fallback for non-native browsers)
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+
+      const isRightEdgeSwipe = startX > window.innerWidth - 40 && deltaX < -60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
+      const isLeftEdgeSwipe = startX < 40 && deltaX > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
+
+      if (isRightEdgeSwipe || isLeftEdgeSwipe) {
+        if (showLeaderboard) setShowLeaderboard(false);
+        else if (showSettings) setShowSettings(false);
+        else if (showProfileModal) setShowProfileModal(false);
+        else if (showFeedbackModal) setShowFeedbackModal(false);
+        else if (showProfileMenu) setShowProfileMenu(false);
+        else if (isFullScreen) setIsFullScreen(false);
+        else if (gameState === 'playing' || gameState === 'gameover') {
+          setGameState('menu');
+        }
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [showLeaderboard, showSettings, showProfileModal, showFeedbackModal, showProfileMenu, isFullScreen, gameState]);
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1158,30 +1249,5 @@ export default function App() {
     );
   };
 
-  return (
-    <AnimatePresence mode="wait">
-      {showIntro ? (
-        <motion.div 
-          key="intro-overlay" 
-          className="fixed inset-0 z-[200] bg-zinc-950 flex items-center justify-center p-0 m-0"
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-        >
-          <Suspense fallback={null}>
-            <IntroScreen onComplete={() => setShowIntro(false)} />
-          </Suspense>
-        </motion.div>
-      ) : (
-        <motion.div
-           key="app-content"
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           transition={{ duration: 0.5, ease: "easeOut" }}
-           className="fixed inset-0 z-10"
-        >
-          {renderAppContent()}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  return renderAppContent();
 }
