@@ -14,14 +14,16 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         injectRegister: 'inline',
         includeAssets: ['snake-logo-final.png', 'favicon.ico', 'masked-icon.svg'],
+        manifestFilename: 'manifest.json',
         manifest: {
-          name: 'Snake',
-          short_name: 'Snake',
+          name: 'Snake MK Edition',
+          short_name: 'Snake MK',
           description: 'A classic snake game with global leaderboards',
           theme_color: '#06b6d4',
           background_color: '#000000',
-          display: 'standalone',
+          display: 'fullscreen',
           orientation: 'portrait',
+          start_url: '/',
           icons: [
             {
               src: '/snake-logo-final.png',

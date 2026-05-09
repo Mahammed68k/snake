@@ -535,7 +535,8 @@ export default function SnakeGame({
   return (
     <div 
       ref={gameContainerRef}
-      className="flex flex-col items-center justify-center relative touch-none w-full h-full"
+      onContextMenu={(e) => e.preventDefault()}
+      className="flex flex-col items-center justify-center relative touch-none w-full h-full select-none"
     >
       <div
         className={`relative bg-black/60 border-4 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500 backdrop-blur-md flex-shrink-0 ${isFullScreen ? 'rounded-none border-0 shadow-none w-full md:w-full' : 'w-[375px] md:w-full'} ${
