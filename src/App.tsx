@@ -429,7 +429,7 @@ export default function App() {
       if (s.showFeedbackModal) { setShowFeedbackModal(false); actionTaken = true; }
       if (s.showProfileMenu) { setShowProfileMenu(false); actionTaken = true; }
       if (s.isFullScreen) { setIsFullScreen(false); actionTaken = true; }
-      if (s.gameState === 'playing' || s.gameState === 'gameover') { 
+      if (s.gameState === 'playing') { 
         setGameState('menu'); 
         actionTaken = true; 
       }
@@ -471,7 +471,7 @@ export default function App() {
         else if (showFeedbackModal) setShowFeedbackModal(false);
         else if (showProfileMenu) setShowProfileMenu(false);
         else if (isFullScreen) setIsFullScreen(false);
-        else if (gameState === 'playing' || gameState === 'gameover') {
+        else if (gameState === 'playing') {
           setGameState('menu');
         }
       }

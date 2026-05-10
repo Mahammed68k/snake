@@ -1,16 +1,25 @@
 import React from 'react';
+import { ArrowLeft } from 'lucide-react';
 
-export default function TermsOfService() {
+export default function TermsOfService({ onClose }: { onClose?: () => void } = {}) {
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-300 py-12 px-4 md:px-8 font-sans">
-      <div className="max-w-3xl mx-auto bg-black/50 border border-cyan-500/30 rounded-2xl p-8 shadow-[0_0_40px_rgba(6,182,212,0.1)]">
-        <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-          <h1 className="text-3xl font-display font-black text-cyan-400 tracking-wider">
+    <div className="min-h-[100dvh] w-full bg-[#050505] text-gray-300 py-12 px-4 md:px-8 font-sans relative z-[100]">
+      <div className="max-w-3xl mx-auto bg-black/50 border border-cyan-500/30 rounded-2xl p-5 sm:p-8 shadow-[0_0_40px_rgba(6,182,212,0.1)]">
+        <div className="flex flex-row items-center mb-6 sm:mb-8 border-b border-white/10 pb-4 gap-4">
+          {onClose ? (
+            <button onClick={onClose} className="p-2 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all focus:outline-none whitespace-nowrap shrink-0 flex items-center gap-2" aria-label="Back">
+              <ArrowLeft size={18} />
+              <span className="hidden sm:inline">Back</span>
+            </button>
+          ) : (
+            <a href="/" className="p-2 sm:px-4 sm:py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all whitespace-nowrap shrink-0 flex items-center gap-2" aria-label="Back">
+              <ArrowLeft size={18} />
+              <span className="hidden sm:inline">Back</span>
+            </a>
+          )}
+          <h1 className="text-xl sm:text-3xl font-display font-black text-cyan-400 tracking-wider truncate">
             TERMS OF SERVICE
           </h1>
-          <a href="/" className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm transition-all">
-            Back to Game
-          </a>
         </div>
         
         <div className="space-y-6 text-sm leading-relaxed">

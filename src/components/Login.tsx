@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { signInWithPopup, signInAnonymously, updateProfile } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, facebookProvider, db } from '../firebase';
+import PrivacyPolicy from './PrivacyPolicy';
+import TermsOfService from './TermsOfService';
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -12,8 +14,55 @@ export default function Login() {
   const [showDesktopPopup, setShowDesktopPopup] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [cachedUser, setCachedUser] = useState<{name: string, email: string, photo: string | null} | null>(null);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
+  // Handle system back button (and native edge swipes on mobile)
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state?.modal === 'none' || !e.state) {
+        if (showPrivacy) setShowPrivacy(false);
+        if (showTerms) setShowTerms(false);
+        if (showDesktopPopup && cachedUser && !showGuestInput) setShowDesktopPopup(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showPrivacy, showTerms, showDesktopPopup, cachedUser, showGuestInput]);
+
+  const openPrivacy = () => {
+    window.history.pushState({ modal: 'privacy' }, '');
+    setShowPrivacy(true);
+  };
+
+  const openTerms = () => {
+    window.history.pushState({ modal: 'terms' }, '');
+    setShowTerms(true);
+  };
+
+  const closePrivacy = () => {
+    if (window.history.state?.modal === 'privacy') window.history.back();
+    else setShowPrivacy(false);
+  };
+
+  const closeTerms = () => {
+    if (window.history.state?.modal === 'terms') window.history.back();
+    else setShowTerms(false);
+  };
+
+  const openDesktopPopup = () => {
+    window.history.pushState({ modal: 'desktopPopup' }, '');
+    setShowDesktopPopup(true);
+  };
+
+  const closeDesktopPopup = () => {
+    if (window.history.state?.modal === 'desktopPopup') window.history.back();
+    else setShowDesktopPopup(false);
+  };
 
   // Load cached user info for personalization
+
   useEffect(() => {
     // Only access localStorage once on mount
     try {
@@ -258,7 +307,7 @@ export default function Login() {
                 </div>
                 {!isVerifying && (
                   <button 
-                    onClick={() => setShowDesktopPopup(false)}
+                    onClick={closeDesktopPopup}
                     className="p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all"
                   >
                     <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -434,12 +483,39 @@ export default function Login() {
           )}
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-white font-bold">
-            <a href="/privacy.html" className="hover:text-cyan-400 underline transition-colors underline-offset-4">Privacy Policy</a>
+            <button onClick={openPrivacy} className="hover:text-cyan-400 underline transition-colors underline-offset-4 focus:outline-none">Privacy Policy</button>
             <span aria-hidden="true" className="opacity-50">&bull;</span>
-            <a href="/terms.html" className="hover:text-cyan-400 underline transition-colors underline-offset-4">Terms of Service</a>
+            <button onClick={openTerms} className="hover:text-cyan-400 underline transition-colors underline-offset-4 focus:outline-none">Terms of Service</button>
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showPrivacy && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed inset-0 z-[100] bg-black overflow-y-auto"
+          >
+            <PrivacyPolicy onClose={closePrivacy} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTerms && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed inset-0 z-[100] bg-black overflow-y-auto"
+          >
+            <TermsOfService onClose={closeTerms} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </main>
   );
 }
