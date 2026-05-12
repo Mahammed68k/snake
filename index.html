@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Snake</title>
     <meta name="description" content="Play Snake - Professional arcade experience with neon aesthetics, global leaderboards, and optimized mobile controls." />
     <meta name="theme-color" content="#06b6d4" />
@@ -13,12 +13,13 @@
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
     <style>
       :root { --bg: #050505; --cyan: #06b6d4; --fuchsia: #d946ef; }
-      body { 
+      html, body {
         background-color: var(--bg); 
         margin: 0; 
         color: white; 
         font-family: 'Inter', -apple-system, system-ui, sans-serif;
         overscroll-behavior: none;
+        touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
       #root { 
@@ -76,6 +77,11 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Prevent Safari pinch-to-zoom
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+      document.addEventListener('gestureend', function (e) { e.preventDefault(); });
+
       // Remove loader once React mounts to prevent double loaders
       window.addEventListener('DOMContentLoaded', () => {
         const observer = new MutationObserver((mutations) => {

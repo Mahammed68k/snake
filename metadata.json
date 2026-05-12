@@ -1,6 +1,6 @@
 {
   "name": "Snake",
   "description": "A high-performance classic Snake game with a custom tech aesthetic, global leaderboards, and smooth PWA support.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["identity-credentials-get"],
   "majorCapabilities": []
 }

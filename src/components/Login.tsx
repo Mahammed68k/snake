@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { signInWithPopup, signInAnonymously, updateProfile } from 'firebase/auth';
+import { signInWithPopup, signInAnonymously, updateProfile, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, facebookProvider, db } from '../firebase';
 import PrivacyPolicy from './PrivacyPolicy';
@@ -160,6 +160,77 @@ export default function Login() {
     }
     return url;
   };
+
+  useEffect(() => {
+    const initializeOneTap = () => {
+      const google = (window as any).google;
+      if (!google) return;
+
+      google.accounts.id.initialize({
+        client_id: '291985648854-oh372cqbmh0h3otgj9to9p60pan94hvu.apps.googleusercontent.com',
+        callback: async (response: any) => {
+          try {
+            setLoadingProvider('google');
+            const credential = GoogleAuthProvider.credential(response.credential);
+            const result = await signInWithCredential(auth, credential);
+            
+            const user = result.user;
+            if (user) {
+              const profile = {
+                name: user.displayName || 'Player',
+                email: user.email || '',
+                photo: getBestPhotoURL(user)
+              };
+              localStorage.setItem('last_user_profile', JSON.stringify(profile));
+              setCachedUser(profile);
+            }
+          } catch (err: any) {
+            handleSocialLoginError(err, 'Google One Tap');
+          } finally {
+            setLoadingProvider(null);
+          }
+        },
+        auto_select: false, // Don't auto-select without user action to avoid loop
+        cancel_on_tap_outside: false
+      });
+      
+      // We only prompt if they are not playing as guest with specific overrides
+      if (!showGuestInput) {
+        // AI Studio iframe often block One Tap due to FedCM and cross-origin restrictions
+        // So we might only want to show it if opened in a new tab
+        const isIframe = window !== window.top;
+        if (!isIframe) {
+          google.accounts.id.prompt((notification: any) => {
+             if (notification.isNotDisplayed()) {
+               console.log('One tap not displayed: ', notification.getNotDisplayedReason());
+             }
+          });
+        } else {
+          console.log('One tap disabled in iframe to prevent FedCM/cookie errors.');
+        }
+      }
+    };
+
+    let scriptElement: HTMLScriptElement | null = null;
+    
+    if (!(window as any).google) {
+      scriptElement = document.createElement('script');
+      scriptElement.src = 'https://accounts.google.com/gsi/client';
+      scriptElement.async = true;
+      scriptElement.defer = true;
+      scriptElement.onload = initializeOneTap;
+      document.body.appendChild(scriptElement);
+    } else {
+      initializeOneTap();
+    }
+
+    return () => {
+      const google = (window as any).google;
+      if (google && google.accounts && google.accounts.id) {
+        google.accounts.id.cancel();
+      }
+    };
+  }, [showGuestInput]);
 
   const handleGoogleLogin = async () => {
     if (loadingProvider) return;

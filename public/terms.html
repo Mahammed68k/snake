@@ -2,12 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Terms of Service - Snake</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Inter:wght@400;500;700;900&display=swap');
-      body { margin: 0; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+      html, body { 
+        margin: 0; 
+        -webkit-font-smoothing: antialiased; 
+        -moz-osx-font-smoothing: grayscale; 
+        overscroll-behavior: none;
+        touch-action: manipulation;
+      }
       .font-display { font-family: 'Orbitron', system-ui, sans-serif; }
       .font-sans { font-family: 'Inter', system-ui, sans-serif; }
     </style>
@@ -73,5 +79,11 @@
         </div>
       </div>
     </div>
+    <script>
+      // Prevent Safari pinch-to-zoom
+      document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+      document.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+      document.addEventListener('gestureend', function (e) { e.preventDefault(); });
+    </script>
   </body>
 </html>
