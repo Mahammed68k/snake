@@ -73,6 +73,26 @@ export default function SnakeGame({
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     return window.innerWidth < 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   });
+  const [continueCountdown, setContinueCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (gameOver && canRevive && !hasUsedReviveInSession) {
+      setContinueCountdown(3);
+    } else {
+      setContinueCountdown(null);
+    }
+  }, [gameOver, canRevive, hasUsedReviveInSession]);
+
+  useEffect(() => {
+    if (continueCountdown === null || continueCountdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (continueCountdown === 1) {
+        setCanRevive(false);
+      }
+      setContinueCountdown(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [continueCountdown]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -838,7 +858,7 @@ export default function SnakeGame({
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  disabled={isContinuing}
+                  disabled={isContinuing || continueCountdown === 0}
                   animate={{ 
                     boxShadow: ["0 0 15px rgba(34,197,94,0.6)", "0 0 25px rgba(34,197,94,0.9)", "0 0 15px rgba(34,197,94,0.6)"] 
                   }}
@@ -846,7 +866,7 @@ export default function SnakeGame({
                   onClick={continueGame}
                   className={`w-full px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-colors flex flex-col items-center justify-center leading-tight ${isContinuing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <span>{isContinuing ? 'PREPARING...' : 'CONTINUE'}</span>
+                  <span>{isContinuing ? 'PREPARING...' : `CONTINUE (${continueCountdown})`}</span>
                   <span className="text-[10px] uppercase tracking-widest text-green-100 font-bold">1 Chance Today</span>
                 </motion.button>
               )}
@@ -862,18 +882,20 @@ export default function SnakeGame({
               >
                 PLAY AGAIN
               </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                animate={{ 
-                  boxShadow: ["0 0 0px rgba(217,70,239,0)", "0 0 15px rgba(217,70,239,0.4)", "0 0 0px rgba(217,70,239,0)"] 
-                }}
-                transition={{ repeat: Infinity, duration: 2, delay: 0.4 }}
-                onClick={onShowLeaderboard}
-                className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-colors"
-              >
-                LEADERBOARD
-              </motion.button>
+              {(continueCountdown === 0 || continueCountdown === null) && (
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  animate={{ 
+                    boxShadow: ["0 0 0px rgba(217,70,239,0)", "0 0 15px rgba(217,70,239,0.4)", "0 0 0px rgba(217,70,239,0)"] 
+                  }}
+                  transition={{ repeat: Infinity, duration: 2, delay: 0.4 }}
+                  onClick={onShowLeaderboard}
+                  className="w-full px-6 py-3 bg-fuchsia-600/20 hover:bg-fuchsia-600/40 text-fuchsia-400 border border-fuchsia-500/50 font-bold rounded-full transition-colors"
+                >
+                  LEADERBOARD
+                </motion.button>
+              )}
               {onReturnToMenu && showMainMenuButton && (
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}

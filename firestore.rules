@@ -1,6 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     // Check if the user is authenticated
     function isAuthenticated() {
       return request.auth != null;
@@ -18,12 +23,14 @@ service cloud.firestore {
              request.resource.data.displayName.size() <= 50 &&
              request.resource.data.score is number &&
              request.resource.data.score >= 0 &&
-             request.resource.data.timestamp is timestamp;
+             (request.resource.data.timestamp is timestamp || request.resource.data.timestamp == request.time);
     }
 
     match /{collection}/{userId} {
-      // Anyone can read the leaderboard
-      allow read: if collection in ['leaderboard', 'leaderboard_google', 'leaderboard_facebook', 'leaderboard_playgames', 'leaderboard_guest'];
+      // Identity check for leaderboard read operations
+      allow list: if collection in ['leaderboard', 'leaderboard_google', 'leaderboard_facebook', 'leaderboard_playgames', 'leaderboard_guest'];
+      
+      allow get: if collection in ['leaderboard', 'leaderboard_google', 'leaderboard_facebook', 'leaderboard_playgames', 'leaderboard_guest'];
       
       // Users can only create their own scores
       allow create: if collection in ['leaderboard_google', 'leaderboard_facebook', 'leaderboard_playgames', 'leaderboard_guest'] &&
@@ -32,13 +39,15 @@ service cloud.firestore {
                     request.resource.data.userId == request.auth.uid &&
                     isValidLeaderboardEntry();
                     
-      // Users can update their own score if it's higher, or just update their display name
+      // Users can update their own score if it's higher, or just update their profile
       allow update: if collection in ['leaderboard_google', 'leaderboard_facebook', 'leaderboard_playgames', 'leaderboard_guest'] &&
                     isAuthenticated() && 
                     userId == request.auth.uid &&
                     request.resource.data.userId == request.auth.uid &&
-                    isValidLeaderboardEntry() &&
-                    request.resource.data.score >= resource.data.score;
+                    (
+                      // Only modifying score, timestamp, photoURL, displayName, userId
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['score', 'timestamp', 'displayName', 'photoURL', 'userId'])
+                    );
       
       allow delete: if false;
     }

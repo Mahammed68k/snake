@@ -52,11 +52,29 @@
     }
   },
   "firestore": {
-    "/leaderboard/{entryId}": {
+    "/leaderboard_google/{entryId}": {
       "schema": {
         "$ref": "#/entities/LeaderboardEntry"
       },
-      "description": "Collection of high scores"
+      "description": "Collection of high scores for Google login"
+    },
+    "/leaderboard_facebook/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Collection of high scores for Facebook login"
+    },
+    "/leaderboard_guest/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Collection of high scores for Guest login"
+    },
+    "/leaderboard_playgames/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Collection of high scores for Google Play Games login"
     },
     "/feedback/{feedbackId}": {
       "schema": {

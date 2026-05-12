@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
@@ -53,6 +53,7 @@ export default function Leaderboard({ provider, onClose }: LeaderboardProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     const path = `leaderboard_${provider}`;
     const q = query(collection(db, path), orderBy('score', 'desc'), limit(50));
 
@@ -63,11 +64,11 @@ export default function Leaderboard({ provider, onClose }: LeaderboardProps) {
       const seenUsers = new Set();
       
       for (const entry of allScores) {
-        if (!seenUsers.has(entry.userId)) {
-          uniqueScores.push(entry);
-          seenUsers.add(entry.userId);
+        const uId = entry.userId || entry.id;
+        if (!seenUsers.has(uId)) {
+          uniqueScores.push({ ...entry, userId: uId });
+          seenUsers.add(uId);
         }
-        if (uniqueScores.length >= 10) break;
       }
       
       setScores(uniqueScores);

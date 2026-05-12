@@ -230,17 +230,24 @@ export default function App() {
     };
   }, []);
 
+  const scoreRef = React.useRef(score);
   useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    // Reset division record when user identity changes
+    setDivisionRecord(scoreRef.current);
+    
     // Fetch Division Record (1st Position) for current provider
-    const provider = getUserProvider(user);
+    const provider = getUserProvider(auth.currentUser || user);
     const q = query(collection(db, `leaderboard_${provider}`), orderBy('score', 'desc'), limit(1));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         const dbRecord = snapshot.docs[0].data().score || 0;
-        // Keep the donor record if it's higher than the DB record (prevents reset during active game)
-        setDivisionRecord(prev => Math.max(prev, dbRecord));
+        setDivisionRecord(prev => Math.max(scoreRef.current, dbRecord));
       } else {
-        setDivisionRecord(prev => Math.max(prev, 0));
+        setDivisionRecord(scoreRef.current);
       }
     }, (err) => {
       console.warn(`Division record fetch failed for ${provider}`, err);
@@ -323,35 +330,18 @@ export default function App() {
             // Source of Truth logic
             let finalSyncScore = Math.max(absoluteMaxDbScore, localBest, 0);
 
-            if (finalSyncScore > 0) {
-              setPersonalBest(prev => Math.max(prev, finalSyncScore));
-              localStorage.setItem(localHighScoreKey, Math.max(localBest, finalSyncScore).toString());
-              
-              // If cloud was behind local or missing, sync it UP
-              if (finalSyncScore > absoluteMaxDbScore) {
-                const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
-                await setDoc(scoreRef, {
-                  userId: currentUser.uid,
-                  displayName: currentUser.displayName || 'Player',
-                  photoURL: getPhotoURL(currentUser),
-                  score: finalSyncScore,
-                  timestamp: serverTimestamp()
-                }, { merge: true });
-              }
-
-              // Update profile info in the cloud if it exists
-              const photo = getPhotoURL(currentUser);
-              if (photo || currentUser.displayName) {
-                const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
-                await setDoc(scoreRef, {
-                  displayName: currentUser.displayName || 'Player',
-                  photoURL: photo,
-                }, { merge: true });
-              }
-            } else {
-              setPersonalBest(0);
-              localStorage.setItem(localHighScoreKey, '0');
-            }
+            setPersonalBest(finalSyncScore);
+            localStorage.setItem(localHighScoreKey, finalSyncScore.toString());
+            
+            // Always ensure the user has a document in the leaderboard with their latest profile and highest score
+            const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
+            await setDoc(scoreRef, {
+              userId: currentUser.uid,
+              displayName: currentUser.displayName || 'Player',
+              photoURL: getPhotoURL(currentUser) || '',
+              score: finalSyncScore,
+              timestamp: serverTimestamp()
+            }, { merge: true }).catch((error) => console.error("Error setting initial score:", error));
           } catch (error) {
             console.error("Error fetching high score:", error);
           }
@@ -370,12 +360,8 @@ export default function App() {
   useEffect(() => {
     const handleProfileUpdate = () => {
       if (auth.currentUser) {
-        // We can't spread auth.currentUser as it removes class methods like getIdToken
-        // Instead, we set a new copy of the reference using Object.assign or just update a tick
-        setUser(auth.currentUser);
+        setUser({ ...auth.currentUser } as User);
         setNewName(auth.currentUser.displayName || '');
-        // Force re-render trick if same object ref (it usually is)
-        setScore(s => s); 
       }
     };
     window.addEventListener('profileUpdated', handleProfileUpdate);
@@ -599,34 +585,49 @@ export default function App() {
   };
 
   const handleGameOver = async (finalScore: number) => {
-    if (!user || finalScore === 0) return;
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
     
-    // Only update if new score is higher than current local high score
+    // Always use fresh auth object to avoid stale closures
+    const provider = getUserProvider(currentUser);
+    const collectionName = `leaderboard_${provider}`;
+    const path = `${collectionName}/${currentUser.uid}`;
+    const scoreRef = doc(db, collectionName, currentUser.uid);
+    const displayName = currentUser.displayName || (currentUser.isAnonymous 
+      ? 'Anonymous' 
+      : (currentUser.email?.split('@')[0] || 'Anonymous'));
+
     if (finalScore > personalBest) {
       setPersonalBest(finalScore);
-      localStorage.setItem(user ? `snakeHighScore_${user.uid}` : 'snakeHighScore_guest', finalScore.toString());
-      
-      const provider = getUserProvider(user);
-      const collectionName = `leaderboard_${provider}`;
-      const path = `${collectionName}/${user.uid}`;
-      const scoreRef = doc(db, collectionName, user.uid);
-      
-      const displayName = user.displayName || (user.isAnonymous 
-        ? 'Anonymous' 
-        : (user.email?.split('@')[0] || 'Anonymous'));
+      localStorage.setItem(currentUser ? `snakeHighScore_${currentUser.uid}` : 'snakeHighScore_guest', finalScore.toString());
+    }
 
-      setDoc(scoreRef, {
-        userId: user.uid,
-        displayName,
-        photoURL: getPhotoURL(user),
-        score: finalScore,
-        timestamp: serverTimestamp()
-      }, { merge: true }).catch((error: any) => {
-        if (error.code === 'permission-denied') {
-          handleFirestoreError(error, OperationType.WRITE, path);
-        }
-        console.error("Error saving score:", error);
-      });
+    try {
+      const scoreDoc = await getDoc(scoreRef);
+      const dbScore = scoreDoc.exists() ? (scoreDoc.data().score || 0) : 0;
+
+      if (finalScore > dbScore) {
+        await setDoc(scoreRef, {
+          userId: currentUser.uid,
+          displayName,
+          photoURL: getPhotoURL(currentUser) || '',
+          score: finalScore,
+          timestamp: serverTimestamp()
+        }, { merge: true });
+        console.log("Score saved successfully to", collectionName);
+      } else if (finalScore > 0 || scoreDoc.exists()) {
+        // Just update profile in case it changed without overriding score
+        await setDoc(scoreRef, {
+          userId: currentUser.uid,
+          displayName,
+          photoURL: getPhotoURL(currentUser) || '',
+        }, { merge: true });
+      }
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, path);
+      }
+      console.error("Error saving score:", error);
     }
   };
 
@@ -649,7 +650,7 @@ export default function App() {
     }
   };
 
-  const currentProvider = getUserProvider(user);
+  const currentProvider = getUserProvider(auth.currentUser || user);
   const providerDisplayName = currentProvider === 'google' ? 'Google' : currentProvider === 'facebook' ? 'Facebook' : currentProvider === 'playgames' ? 'Play Games' : 'Guest';
   const recordLabelText = `${providerDisplayName.toUpperCase()}_TOP`;
 
