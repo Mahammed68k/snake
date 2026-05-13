@@ -328,20 +328,28 @@ export default function App() {
             const localBest = parseInt(localStorage.getItem(localHighScoreKey) || '0', 10);
             
             // Source of Truth logic
-            let finalSyncScore = Math.max(absoluteMaxDbScore, localBest, 0);
+            // If the database has a score (even if manually lowered), prefer it over local storage so manual edits apply.
+            let finalSyncScore = absoluteMaxDbScore >= 0 ? absoluteMaxDbScore : Math.max(localBest, 0);
 
             setPersonalBest(finalSyncScore);
             localStorage.setItem(localHighScoreKey, finalSyncScore.toString());
             
-            // Always ensure the user has a document in the leaderboard with their latest profile and highest score
+            // We only need to write back to the database if we actually had to fall back to the local score (meaning it wasn't in DB)
+            // or if we just want to update the profile information.
             const scoreRef = doc(db, `leaderboard_${currentProvider}`, currentUser.uid);
-            await setDoc(scoreRef, {
+            const dataToWrite: any = {
               userId: currentUser.uid,
               displayName: currentUser.displayName || 'Player',
               photoURL: getPhotoURL(currentUser) || '',
-              score: finalSyncScore,
               timestamp: serverTimestamp()
-            }, { merge: true }).catch((error) => console.error("Error setting initial score:", error));
+            };
+            
+            if (absoluteMaxDbScore < 0) {
+              dataToWrite.score = finalSyncScore;
+            }
+            // Do not override user's score unconditionally here to respect manual database changes.
+            await setDoc(scoreRef, dataToWrite, { merge: true }).catch((error) => console.error("Error setting initial score:", error));
+
           } catch (error) {
             console.error("Error fetching high score:", error);
           }
