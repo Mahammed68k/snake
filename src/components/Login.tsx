@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signInWithPopup, signInAnonymously, updateProfile, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -11,9 +11,6 @@ export default function Login() {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [showGuestInput, setShowGuestInput] = useState(false);
   const [guestName, setGuestName] = useState('');
-  const [showDesktopPopup, setShowDesktopPopup] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [cachedUser, setCachedUser] = useState<{name: string, email: string, photo: string | null} | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
@@ -23,13 +20,12 @@ export default function Login() {
       if (e.state?.modal === 'none' || !e.state) {
         if (showPrivacy) setShowPrivacy(false);
         if (showTerms) setShowTerms(false);
-        if (showDesktopPopup && cachedUser && !showGuestInput) setShowDesktopPopup(false);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showPrivacy, showTerms, showDesktopPopup, cachedUser, showGuestInput]);
+  }, [showPrivacy, showTerms]);
 
   const openPrivacy = () => {
     window.history.pushState({ modal: 'privacy' }, '');
@@ -49,49 +45,6 @@ export default function Login() {
   const closeTerms = () => {
     if (window.history.state?.modal === 'terms') window.history.back();
     else setShowTerms(false);
-  };
-
-  const openDesktopPopup = () => {
-    window.history.pushState({ modal: 'desktopPopup' }, '');
-    setShowDesktopPopup(true);
-  };
-
-  const closeDesktopPopup = () => {
-    if (window.history.state?.modal === 'desktopPopup') window.history.back();
-    else setShowDesktopPopup(false);
-  };
-
-  // Load cached user info for personalization
-
-  useEffect(() => {
-    // Only access localStorage once on mount
-    try {
-      const saved = localStorage.getItem('last_user_profile');
-      if (saved) {
-        let profile = JSON.parse(saved);
-        if (profile.photo && (profile.photo.includes('ui-avatars.com') || profile.photo.includes('dicebear'))) {
-          profile.photo = null;
-        }
-        setCachedUser(profile);
-        // Defer showing the popup slightly to prioritize main UI render
-        const timer = setTimeout(() => setShowDesktopPopup(true), 100);
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {
-      console.warn('Failed to load cached user profile');
-    }
-  }, []);
-
-  const handleOneTapLogin = async () => {
-    setIsVerifying(true);
-    // Add a slight delay to show the "Verifying..." state before opening popup
-    setTimeout(async () => {
-      try {
-        await handleGoogleLogin();
-      } catch (error) {
-        setIsVerifying(false);
-      }
-    }, 1200);
   };
 
   // Reset loading state after 1 minute as a safety fallback for stuck mobile popups
@@ -161,67 +114,82 @@ export default function Login() {
     return url;
   };
 
+  const gsiCallbackRef = useRef<any>(null);
+
+  // Keep the callback ref updated with the latest state and functions
+  useEffect(() => {
+    gsiCallbackRef.current = async (response: any) => {
+      try {
+        setLoadingProvider('google');
+        const credential = GoogleAuthProvider.credential(response.credential);
+        const result = await signInWithCredential(auth, credential);
+        
+        const user = result.user;
+        if (user) {
+          const profile = {
+            name: user.displayName || 'Player',
+            email: user.email || '',
+            photo: getBestPhotoURL(user)
+          };
+          localStorage.setItem('last_user_profile', JSON.stringify(profile));
+        }
+      } catch (err: any) {
+        handleSocialLoginError(err, 'Google One Tap');
+      } finally {
+        setLoadingProvider(null);
+      }
+    };
+  });
+
   useEffect(() => {
     const initializeOneTap = () => {
       const google = (window as any).google;
       if (!google) return;
 
-      google.accounts.id.initialize({
-        client_id: '291985648854-oh372cqbmh0h3otgj9to9p60pan94hvu.apps.googleusercontent.com',
-        callback: async (response: any) => {
-          try {
-            setLoadingProvider('google');
-            const credential = GoogleAuthProvider.credential(response.credential);
-            const result = await signInWithCredential(auth, credential);
-            
-            const user = result.user;
-            if (user) {
-              const profile = {
-                name: user.displayName || 'Player',
-                email: user.email || '',
-                photo: getBestPhotoURL(user)
-              };
-              localStorage.setItem('last_user_profile', JSON.stringify(profile));
-              setCachedUser(profile);
-            }
-          } catch (err: any) {
-            handleSocialLoginError(err, 'Google One Tap');
-          } finally {
-            setLoadingProvider(null);
-          }
-        },
-        auto_select: false, // Don't auto-select without user action to avoid loop
-        cancel_on_tap_outside: false
-      });
+      // Only initialize once per session to avoid re-initialization warnings
+      if (!(window as any).gsiInitialized) {
+        const isTopLevel = window === window.top;
+        
+        google.accounts.id.initialize({
+          client_id: '291985648854-oh372cqbmh0h3otgj9to9p60pan94hvu.apps.googleusercontent.com',
+          callback: (response: any) => gsiCallbackRef.current?.(response),
+          auto_select: false,
+          use_fedcm_for_prompt: isTopLevel, // Strictly top-level only
+          context: 'signin',
+          itp_support: true,
+          cancel_on_tap_outside: false
+        });
+        (window as any).gsiInitialized = true;
+      }
       
-      // We only prompt if they are not playing as guest with specific overrides
-      if (!showGuestInput) {
-        // AI Studio iframe often block One Tap due to FedCM and cross-origin restrictions
-        // So we might only want to show it if opened in a new tab
-        const isIframe = window !== window.top;
-        if (!isIframe) {
-          google.accounts.id.prompt((notification: any) => {
-             if (notification.isNotDisplayed()) {
-               console.log('One tap not displayed: ', notification.getNotDisplayedReason());
-             }
-          });
-        } else {
-          console.log('One tap disabled in iframe to prevent FedCM/cookie errors.');
-        }
+      // FedCM and One Tap are not allowed in cross-origin iframes without a specific permission policy.
+      // To avoid NotAllowedError console spam in AI Studio/iframes, we only prompt at the top level.
+      const isTopLevelWindow = window === window.top;
+      if (isTopLevelWindow && !showGuestInput) {
+        google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed()) {
+            console.log('One tap not displayed: ', notification.getNotDisplayedReason());
+          }
+        });
       }
     };
 
-    let scriptElement: HTMLScriptElement | null = null;
+    const scriptId = 'google-gsi-client';
+    let scriptElement = document.getElementById(scriptId) as HTMLScriptElement;
     
-    if (!(window as any).google) {
+    if (!(window as any).google && !scriptElement) {
       scriptElement = document.createElement('script');
+      scriptElement.id = scriptId;
       scriptElement.src = 'https://accounts.google.com/gsi/client';
       scriptElement.async = true;
       scriptElement.defer = true;
       scriptElement.onload = initializeOneTap;
       document.body.appendChild(scriptElement);
-    } else {
+    } else if ((window as any).google) {
       initializeOneTap();
+    } else if (scriptElement) {
+      // Script is already loading, just wait for it
+      scriptElement.addEventListener('load', initializeOneTap);
     }
 
     return () => {
@@ -248,7 +216,6 @@ export default function Login() {
           photo: getBestPhotoURL(user)
         };
         localStorage.setItem('last_user_profile', JSON.stringify(profile));
-        setCachedUser(profile);
       }
 
       localStorage.setItem('authProvider', 'google');
@@ -342,95 +309,6 @@ export default function Login() {
 
   return (
     <main className="fixed inset-0 min-h-[100dvh] bg-[#050505] relative overflow-hidden flex flex-col items-center justify-center py-8 px-4 font-sans overflow-y-auto">
-      {/* Desktop One Tap Style Popup */}
-      <AnimatePresence>
-        {showDesktopPopup && cachedUser && !showGuestInput && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="hidden lg:block fixed top-6 right-6 z-50 w-[360px] bg-[#202124] border border-white/10 rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.6)] overflow-hidden font-sans"
-          >
-            <div className="relative">
-              {/* Progress bar during Verifying state */}
-              {isVerifying && (
-                <div className="absolute top-[52px] left-0 right-0 h-[2px] bg-white/5 overflow-hidden z-20">
-                  <motion.div 
-                    initial={{ x: "-100%" }}
-                    animate={{ x: "100%" }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className="w-1/2 h-full bg-[#8ab4f8]"
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/[0.05] bg-[#303134]">
-                <div className="flex items-center gap-2.5">
-                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                  <span className="text-[14px] text-[#e8eaed] font-medium tracking-normal">
-                    {isVerifying ? 'Verifying...' : 'Sign in to Snake with google.com'}
-                  </span>
-                </div>
-                {!isVerifying && (
-                  <button 
-                    onClick={closeDesktopPopup}
-                    className="p-1 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all"
-                  >
-                    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center gap-4 mb-10">
-                  <div className="w-[48px] h-[48px] rounded-full overflow-hidden shrink-0 bg-[#3c4043] flex items-center justify-center ring-1 ring-white/10 shadow-inner">
-                    {cachedUser?.photo ? (
-                      <img 
-                        src={cachedUser.photo} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                        onError={() => {
-                          setCachedUser(prev => prev ? {...prev, photo: null} : null);
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-lg font-medium tracking-tighter">
-                        {cachedUser?.name ? cachedUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) : '?'}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[16px] font-medium text-white truncate px-1">
-                      {cachedUser?.name}
-                    </span>
-                    <span className="text-[14px] text-[#9aa0a6] truncate mt-0.5 px-1 font-normal">
-                      {cachedUser?.email}
-                    </span>
-                  </div>
-                </div>
-
-                {!isVerifying && (
-                  <button
-                    onClick={handleOneTapLogin}
-                    className="w-full bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#202124] py-2.5 rounded-full text-[14px] font-bold transition-all active:scale-[0.98] shadow-md"
-                  >
-                    Continue as {cachedUser?.name?.split(' ')[0] || 'Player'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="z-10 bg-black/50 border border-cyan-500/50 rounded-2xl p-8 shadow-[0_0_40px_rgba(6,182,212,0.2)] backdrop-blur-md w-full max-w-md flex flex-col items-center">
         <h1 className="text-4xl font-display font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 drop-shadow-[0_0_15px_rgba(217,70,239,0.5)] tracking-wider mb-2">
           SNAKE
