@@ -154,7 +154,7 @@ export default function Login() {
           client_id: '291985648854-oh372cqbmh0h3otgj9to9p60pan94hvu.apps.googleusercontent.com',
           callback: (response: any) => gsiCallbackRef.current?.(response),
           auto_select: false,
-          use_fedcm_for_prompt: isTopLevel, // Strictly top-level only
+          use_fedcm_for_prompt: isTopLevel,
           context: 'signin',
           itp_support: true,
           cancel_on_tap_outside: false
@@ -162,15 +162,28 @@ export default function Login() {
         (window as any).gsiInitialized = true;
       }
       
-      // FedCM and One Tap are not allowed in cross-origin iframes without a specific permission policy.
-      // To avoid NotAllowedError console spam in AI Studio/iframes, we only prompt at the top level.
       const isTopLevelWindow = window === window.top;
       if (isTopLevelWindow && !showGuestInput) {
-        google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed()) {
-            console.log('One tap not displayed: ', notification.getNotDisplayedReason());
-          }
-        });
+        // Explicitly cancel any pending prompts to reset the UI state
+        // and then request a new prompt.
+        google.accounts.id.cancel();
+        
+        // Use a requestAnimationFrame or short timeout to ensure the cancel 
+        // has propagated before prompting again.
+        setTimeout(() => {
+          google.accounts.id.prompt((notification: any) => {
+            if (notification.isNotDisplayed()) {
+              const reason = notification.getNotDisplayedReason();
+              console.log('One tap not displayed:', reason);
+              
+              // If the reason is 'suppressed_by_user', Google is enforcing the dismissal cooldown.
+              // This is a browser/SDK level security/UX feature.
+            }
+            if (notification.isSkippedMomentary()) {
+              console.log('One tap skipped momentarily');
+            }
+          });
+        }, 200);
       }
     };
 

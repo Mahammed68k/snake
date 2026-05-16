@@ -561,6 +561,9 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
+      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+        (window as any).google.accounts.id.disableAutoSelect();
+      }
       await signOut(auth);
       localStorage.removeItem('authProvider');
     } catch (error) {
