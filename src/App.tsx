@@ -11,7 +11,7 @@ const Login = lazy(() => import('./components/Login'));
 const Leaderboard = lazy(() => import('./components/Leaderboard'));
 const SettingsModal = lazy(() => import('./components/SettingsModal'));
 
-import { getAvatarUrl } from './components/Leaderboard';
+import { getAvatarUrl } from './lib/avatarUtils';
 
 interface GameSettings {
   gridSize: number;
@@ -214,17 +214,19 @@ export default function App() {
   }, [score, divisionRecord]);
 
   useEffect(() => {
-    // Initial connectivity check
-    testFirestoreConnection().then(connected => {
-      setIsOffline(!connected);
-    });
+    // Delay non-critical connectivity check slightly to prioritize initial render
+    const timer = setTimeout(() => {
+      testFirestoreConnection().then(connected => {
+        setIsOffline(!connected);
+      });
+    }, 2000);
 
-    // Listen for window offline events
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -239,20 +241,31 @@ export default function App() {
     // Reset division record when user identity changes
     setDivisionRecord(scoreRef.current);
     
+    let innerUnsubscribe: (() => void) | null = null;
+    
     // Fetch Division Record (1st Position) for current provider
     const provider = getUserProvider(auth.currentUser || user);
-    const q = query(collection(db, `leaderboard_${provider}`), orderBy('score', 'desc'), limit(1));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const dbRecord = snapshot.docs[0].data().score || 0;
-        setDivisionRecord(prev => Math.max(scoreRef.current, dbRecord));
-      } else {
-        setDivisionRecord(scoreRef.current);
-      }
-    }, (err) => {
-      console.warn(`Division record fetch failed for ${provider}`, err);
-    });
-    return () => unsubscribe();
+    
+    // Delay non-critical data fetching
+    const timer = setTimeout(() => {
+      const q = query(collection(db, `leaderboard_${provider}`), orderBy('score', 'desc'), limit(1));
+      const unsubscribeEffect = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const dbRecord = snapshot.docs[0].data().score || 0;
+          setDivisionRecord(prev => Math.max(scoreRef.current, dbRecord));
+        } else {
+          setDivisionRecord(scoreRef.current);
+        }
+      }, (err) => {
+        console.warn(`Division record fetch failed for ${provider}`, err);
+      });
+      innerUnsubscribe = unsubscribeEffect;
+    }, 1500);
+
+    return () => {
+      clearTimeout(timer);
+      if (innerUnsubscribe) innerUnsubscribe();
+    };
   }, [user]);
 
   useEffect(() => {

@@ -57,17 +57,29 @@ export default defineConfig(({mode}) => {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     build: {
+      target: 'esnext',
+      minify: 'esbuild',
+      cssMinify: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-            'vendor-motion': ['motion'],
-            'vendor-ui': ['lucide-react']
-          }
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase/auth')) return 'vendor-fb-auth';
+              if (id.includes('firebase/firestore')) return 'vendor-fb-db';
+              if (id.includes('firebase/app')) return 'vendor-fb-app';
+              if (id.includes('react')) return 'vendor-react';
+              if (id.includes('motion')) return 'vendor-motion';
+              if (id.includes('lucide')) return 'vendor-ui';
+              return 'vendor-utils';
+            }
+          },
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]'
         }
       },
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 600,
+      reportCompressedSize: false
     },
     resolve: {
       alias: {

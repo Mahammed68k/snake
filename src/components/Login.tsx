@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { signInWithPopup, signInAnonymously, updateProfile, signInWithCredential, GoogleAuthProvider } from 'firebase/auth';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, facebookProvider, db } from '../firebase';
-import PrivacyPolicy from './PrivacyPolicy';
-import TermsOfService from './TermsOfService';
+const PrivacyPolicy = React.lazy(() => import('./PrivacyPolicy'));
+const TermsOfService = React.lazy(() => import('./TermsOfService'));
 
 export default function Login() {
   const [error, setError] = useState<string | null>(null);
@@ -191,17 +191,25 @@ export default function Login() {
     let scriptElement = document.getElementById(scriptId) as HTMLScriptElement;
     
     if (!(window as any).google && !scriptElement) {
-      scriptElement = document.createElement('script');
-      scriptElement.id = scriptId;
-      scriptElement.src = 'https://accounts.google.com/gsi/client';
-      scriptElement.async = true;
-      scriptElement.defer = true;
-      scriptElement.onload = initializeOneTap;
-      document.body.appendChild(scriptElement);
+      const injectScript = () => {
+        if (document.getElementById(scriptId)) return;
+        scriptElement = document.createElement('script');
+        scriptElement.id = scriptId;
+        scriptElement.src = 'https://accounts.google.com/gsi/client';
+        scriptElement.async = true;
+        scriptElement.defer = true;
+        scriptElement.onload = initializeOneTap;
+        document.body.appendChild(scriptElement);
+      };
+
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(injectScript, { timeout: 2000 });
+      } else {
+        setTimeout(injectScript, 500);
+      }
     } else if ((window as any).google) {
       initializeOneTap();
     } else if (scriptElement) {
-      // Script is already loading, just wait for it
       scriptElement.addEventListener('load', initializeOneTap);
     }
 
@@ -460,7 +468,9 @@ export default function Login() {
             exit={{ opacity: 0, y: 20 }}
             className="fixed inset-0 z-[100] bg-black overflow-y-auto"
           >
+          <Suspense fallback={<div className="fixed inset-0 bg-black animate-pulse" />}>
             <PrivacyPolicy onClose={closePrivacy} />
+          </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
@@ -473,7 +483,9 @@ export default function Login() {
             exit={{ opacity: 0, y: 20 }}
             className="fixed inset-0 z-[100] bg-black overflow-y-auto"
           >
+          <Suspense fallback={<div className="fixed inset-0 bg-black animate-pulse" />}>
             <TermsOfService onClose={closeTerms} />
+          </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

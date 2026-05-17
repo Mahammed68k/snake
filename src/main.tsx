@@ -1,9 +1,10 @@
-import {StrictMode} from 'react';
+import {StrictMode, lazy, Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
-import RootApp from './RootApp.tsx';
+const RootApp = lazy(() => import('./RootApp.tsx'));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy.tsx'));
+const TermsOfService = lazy(() => import('./components/TermsOfService.tsx'));
 import ErrorBoundary from './components/ErrorBoundary.tsx';
-import PrivacyPolicy from './components/PrivacyPolicy.tsx';
-import TermsOfService from './components/TermsOfService.tsx';
+
 import './index.css';
 
 const path = window.location.pathname;
@@ -20,7 +21,9 @@ if (path === '/privacy' || path === '/privacy-policy' || path === '/privacy.html
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <ComponentToRender />
+      <Suspense fallback={<div className="fixed inset-0 bg-[#050505]" />}>
+        <ComponentToRender />
+      </Suspense>
     </ErrorBoundary>
   </StrictMode>,
 );
