@@ -13,41 +13,39 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'inline',
-        includeAssets: ['snake-logo-final.png', 'favicon.ico', 'masked-icon.svg'],
-        manifestFilename: 'manifest.json',
+        includeAssets: ['snake-logo-final.png', 'pwa-192x192.svg', 'pwa-512x512.svg', 'masked-icon.svg'],
         manifest: {
           name: 'Snake MK Edition',
           short_name: 'Snake MK',
-          description: 'A classic snake game with global leaderboards',
+          description: 'A classic snake game with global leaderboards and neon aesthetics',
           theme_color: '#06b6d4',
-          background_color: '#000000',
-          display: 'fullscreen',
+          background_color: '#050505',
+          display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
           icons: [
             {
-              src: '/snake-logo-final.png',
+              src: '/pwa-192x192.svg',
               sizes: '192x192',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any'
             },
             {
-              src: '/snake-logo-final.png',
+              src: '/pwa-512x512.svg',
               sizes: '512x512',
-              type: 'image/png',
+              type: 'image/svg+xml',
               purpose: 'any'
             },
             {
-              src: '/snake-logo-final.png',
-              sizes: '192x192',
-              type: 'image/png',
+              src: '/masked-icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
               purpose: 'maskable'
             },
             {
               src: '/snake-logo-final.png',
               sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
+              type: 'image/png'
             }
           ]
         }

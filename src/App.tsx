@@ -193,6 +193,39 @@ export default function App() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullScreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        const docEl = document.documentElement as any;
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          await docEl.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle failed:', err);
+    }
+  };
   const [isGameOver, setIsGameOver] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
@@ -1057,6 +1090,8 @@ export default function App() {
             settings={settings} 
             onUpdate={setSettings} 
             onClose={() => setShowSettings(false)} 
+            isFullscreen={isFullScreen}
+            onToggleFullscreen={toggleFullScreen}
           />
         )}
       </Suspense>
@@ -1212,6 +1247,8 @@ export default function App() {
             settings={settings}
             onUpdate={setSettings}
             onClose={() => setShowSettings(false)}
+            isFullscreen={isFullScreen}
+            onToggleFullscreen={toggleFullScreen}
           />
         </div>
       )}
