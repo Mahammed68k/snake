@@ -81,6 +81,11 @@ export default function Login() {
       setError('Your browser is blocking third-party cookies. Please enable them in your browser settings, or Play as Guest.');
       return;
     }
+    if (err.code === 'auth/unauthorized-domain') {
+      const hostname = window.location.hostname;
+      setError(`This site is not authorized for Firebase sign-in. Add “${hostname}” in Firebase Console → Authentication → Settings → Authorized domains, then reload. You can use Play as Guest meanwhile.`);
+      return;
+    }
     if (err.code === 'auth/network-request-failed') {
       setError('Network error. Please check your internet connection and try again.');
       return;
